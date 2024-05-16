@@ -3,6 +3,7 @@ from pathlib import Path
 from telegram import Update
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     ConversationHandler,
@@ -11,12 +12,21 @@ from telegram.ext import (
 )
 import config
 from db import close_db
+from handlers.courses import (
+    SEND_FILE,
+    insert_into_course,
+    lessons_button,
+    show_lessons,
+    update_command,
+)
 from handlers.register import (
     REGISTER,
     canlec_registration,
     register_command,
     register_user,
 )
+
+# from services.cources import update_course_table
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -56,7 +66,24 @@ def main():
             MessageHandler(filters.Regex("cancel"), canlec_registration),
         ],
     )
+    conv_handler2 = ConversationHandler(
+        [CommandHandler(["update"], update_command)],
+        states={
+            SEND_FILE: [
+                MessageHandler(
+                    filters.Document.MimeType("text/csv"), insert_into_course
+                )
+            ]
+        },
+        fallbacks=[
+            CommandHandler(["cancel"], canlec_registration),
+            MessageHandler(filters.Regex("cancel"), canlec_registration),
+        ],
+    )
     app.add_handler(conv_handler)
+    app.add_handler(conv_handler2)
+    app.add_handler(CommandHandler(["show_lessons"], show_lessons))
+    app.add_handler(CallbackQueryHandler(lessons_button))
 
     app.run_polling()
 
