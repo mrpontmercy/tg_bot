@@ -8,13 +8,6 @@ import aiosqlite
 logger = logging.getLogger(__name__)
 
 
-def sql_insert(table, values):
-    columns = ", ".join(values.keys())
-    vals = [values.values()]
-    placeholdes = ", ".join("?" * len(values.keys()))
-    query = f"INSERT INTO {table} ({columns}) VALUES ({placeholdes})"
-
-
 async def get_db():
     if not getattr(get_db, "db", None):
         db = await aiosqlite.connect(config.SQLITE_DB_FILE)
@@ -31,6 +24,28 @@ async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict]:
         results.append(_get_result_with_column_names(cursor, row_))
     await cursor.close()
     return results
+
+
+async def fetch_all2(sql, params: Iterable[Any] | None = None) -> list[dict]:
+    result = []
+    async with aiosqlite.connect(config.SQLITE_DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(sql, params) as cursor:
+            cursor.description
+            async for row in cursor:
+                result.append(_get_result_with_column_names(cursor, row))
+
+    return result
+
+
+async def execute2(
+    sql, params: Iterable[Any] | None = None, *, autocommit: bool = True
+) -> None:
+    async with aiosqlite.connect(config.SQLITE_DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute(sql, params)
+        if autocommit:
+            await db.commit()
 
 
 async def fetch_one(sql, params: Iterable[Any] | None = None) -> dict | None:

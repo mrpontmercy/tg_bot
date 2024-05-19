@@ -1,32 +1,23 @@
 import logging
-from pathlib import Path
 from telegram import Update
 from telegram.ext import (
     Application,
-    CallbackQueryHandler,
-    CommandHandler,
     ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
 )
 import config
 from db import close_db
-from handlers.courses import (
-    SEND_FILE,
-    insert_into_course,
-    lessons_button,
-    show_lessons,
-    update_command,
-)
-from handlers.register import (
-    REGISTER,
-    canlec_registration,
-    register_command,
-    register_user,
+from init_handlers import (
+    ACTIVATE_KEY_HANDLER,
+    ADMIN_HANDLER,
+    CQH_LESSON_BUTTONS,
+    CQH_SUBSCRIBE_LESSON,
+    CQH_USER_LESSON_BUTTONS,
+    REGISTER_USER_HANDLER,
+    SHOW_LESSONS_HANDLER,
+    SHOW_USER_LESSONS_HANDLER,
+    START_HANDLER,
 )
 
-# from services.cources import update_course_table
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -58,32 +49,15 @@ def main():
 
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        [CommandHandler(["register"], register_command)],
-        states={REGISTER: [MessageHandler(filters.TEXT, register_user)]},
-        fallbacks=[
-            CommandHandler(["cancel"], canlec_registration),
-            MessageHandler(filters.Regex("cancel"), canlec_registration),
-        ],
-    )
-    conv_handler2 = ConversationHandler(
-        [CommandHandler(["update"], update_command)],
-        states={
-            SEND_FILE: [
-                MessageHandler(
-                    filters.Document.MimeType("text/csv"), insert_into_course
-                )
-            ]
-        },
-        fallbacks=[
-            CommandHandler(["cancel"], canlec_registration),
-            MessageHandler(filters.Regex("cancel"), canlec_registration),
-        ],
-    )
-    app.add_handler(conv_handler)
-    app.add_handler(conv_handler2)
-    app.add_handler(CommandHandler(["show_lessons"], show_lessons))
-    app.add_handler(CallbackQueryHandler(lessons_button))
+    app.add_handler(START_HANDLER)
+    app.add_handler(ADMIN_HANDLER)
+    app.add_handler(REGISTER_USER_HANDLER)
+    app.add_handler(SHOW_LESSONS_HANDLER)
+    app.add_handler(SHOW_USER_LESSONS_HANDLER)
+    app.add_handler(ACTIVATE_KEY_HANDLER)
+    app.add_handler(CQH_SUBSCRIBE_LESSON)
+    app.add_handler(CQH_LESSON_BUTTONS)
+    app.add_handler(CQH_USER_LESSON_BUTTONS)
 
     app.run_polling()
 

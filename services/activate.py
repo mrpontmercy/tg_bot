@@ -1,19 +1,17 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from db import execute, fetch_one
+from db import get_db
 from services.db import (
-    execute_delete,
-    execute_update,
     fetch_one_subscription_where_cond,
     fetch_one_user,
-    fetch_one_user_with_sub,
+    execute_delete,
+    execute_update,
 )
 from services.exceptions import (
     ErrorContextArgs,
     InvalidSubKey,
     UserError,
-    SubscriptionError,
 )
 from services.utils import Subscription, UserID
 
@@ -46,24 +44,16 @@ async def activate_key_command(
 
 def validate_args(args: list[str] | None):
     if args is not None and len(args) != 1:
-        raise ErrorContextArgs
+        raise ErrorContextArgs(
+            "Нужно ввести только ключ абонимента!.\nПопробуйте снова."
+        )
 
     return args
 
 
-async def get_user(telegram_id: int):
-    user = await fetch_one_user({"telegram_id": telegram_id})
-
-    if user is None:
-        raise UserError("Пользователь не зарегестрирован!")
-
-    return user
-
-
 async def _get_sub_from_key(sub_key: str):
     curr_key_sub: Subscription | None = await fetch_one_subscription_where_cond(
-        "sub_key",
-        ":sub_key",
+        "sub_key=:sub_key",
         {"sub_key": sub_key},
     )
     if curr_key_sub is None:
@@ -77,39 +67,40 @@ async def _get_sub_from_key(sub_key: str):
 
 
 async def activate_key(sub_key: str, user: UserID):
-    curr_key_sub = await _get_sub_from_key(sub_key)
+    try:
+        curr_key_sub = await _get_sub_from_key(sub_key)
+    except InvalidSubKey:
+        raise
 
     sub_by_user = await fetch_one_subscription_where_cond(
-        "user_id", ":user_id", {"user_id": user.id}
+        "user_id=:user_id", {"user_id": user.id}
     )
     if sub_by_user is not None:
         num_of_classes_left = sub_by_user.num_of_classes
         result_num_of_classes = num_of_classes_left + curr_key_sub.num_of_classes
         await execute_delete(
             "subscription",
-            "user_id",
-            ":user_id",
+            "user_id=:user_id",
             {"user_id": user.id},
             autocommit=False,
         )
         await execute_update(
             "subscription",
             "user_id=:user_id, num_of_classes=:num_of_classes",
-            "sub_key",
-            ":sub_key",
+            "sub_key=:sub_key",
             {
                 "num_of_classes": result_num_of_classes,
                 "user_id": user.id,
                 "sub_key": curr_key_sub.sub_key,
             },
-            autocommit=True,
+            autocommit=False,
         )
+        await (await get_db()).commit()
         return "Ваш абонимент обновлен"
     await execute_update(
         "subscription",
         "user_id=:user_id, num_of_classes=:num_of_classes",
-        "sub_key",
-        ":sub_key",
+        "sub_key=:sub_key",
         {
             "num_of_classes": curr_key_sub.num_of_classes,
             "user_id": user.id,
