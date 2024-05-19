@@ -2,8 +2,9 @@ import csv
 import logging
 from pathlib import Path
 
-from db import fetch_all, fetch_one
+from db import fetch_all, fetch_one, get_db
 from services.db import (
+    execute_delete,
     execute_insert,
     execute_update,
     fetch_one_subscription_where_cond,
@@ -15,7 +16,38 @@ from services.exceptions import (
     LessonError,
     SubscriptionError,
 )
-from services.utils import Lesson, Subscription
+from services.utils import Lesson, Subscription, UserID
+
+
+async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
+    await execute_update(
+        "lesson",
+        "num_of_seats=:num_of_seats",
+        "id=:l_id",
+        {"num_of_seats": lesson.num_of_seats + 1, "l_id": lesson.id},
+        autocommit=False,
+    )
+    try:
+        curr_sub = await get_user_subscription(user.id)
+    except SubscriptionError as e:
+        raise
+
+    await execute_update(
+        "subscription",
+        "num_of_classes=:num_of_classes",
+        "user_id=:user_id",
+        {"num_of_classes": curr_sub.num_of_classes + 1, "user_id": user.id},
+        autocommit=False,
+    )
+
+    await execute_delete(
+        "user_lesson",
+        "lesson_id=:lesson_id AND user_id=:user_id",
+        {"user_id": user.id, "lesson_id": lesson.id},
+        autocommit=False,
+    )
+
+    await (await get_db()).commit()
 
 
 async def check_user_in_db(telegram_id: int):
@@ -81,6 +113,8 @@ async def process_sub_to_lesson(lesson: Lesson, sub: Subscription):
         },
         autocommit=False,
     )
+    db = await get_db()
+    await db.commit()
 
 
 def get_lessons_from_file(file_name: Path) -> list[Lesson] | None:

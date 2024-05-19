@@ -12,9 +12,7 @@ def get_flip_with_cancel_INLINEKB(
     current_lesson_index, number_of_lessons, prefix
 ) -> InlineKeyboardMarkup:
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
-    keyboard.append(
-        [InlineKeyboardButton("Отменить", callback_data=f"{prefix}_cancel")]
-    )
+    keyboard.append([InlineKeyboardButton("Отменить", callback_data=f"{prefix}cancel")])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -31,7 +29,7 @@ def get_lesson_INLINEKB(
 
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
     keyboard.append(
-        [InlineKeyboardButton("Записаться", callback_data=f"{prefix}_subscribe")]
+        [InlineKeyboardButton("Записаться", callback_data=f"{prefix}subscribe")]
     )
     return InlineKeyboardMarkup(keyboard)
 

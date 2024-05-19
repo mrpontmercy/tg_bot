@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import logging
 import sqlite3
 
@@ -5,7 +6,11 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from config import CALLBACK_LESSON_PATTERN, CALLBACK_USER_LESSON_PATTERN
+from config import (
+    CALLBACK_LESSON_PATTERN,
+    CALLBACK_USER_LESSON_PATTERN,
+    DATETIME_FORMAT,
+)
 from db import get_db
 from services.db import get_user
 from services.exceptions import LessonError, SubscriptionError, UserError
@@ -16,6 +21,7 @@ from services.lesson import (
     get_available_lessons_from_db,
     get_user_lessons,
     process_sub_to_lesson,
+    update_info_after_cancel_lesson,
 )
 from services.templates import render_template
 from services.utils import Lesson
@@ -37,11 +43,13 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             e + "\nСперва нужно зарегестрироваться!"
         )
     context.user_data["curr_user"] = user
+
     try:
         lessons_by_user = await get_user_lessons(user.id)
     except LessonError as e:
         return await update.message.reply_text(e)
     first_lesson: Lesson = lessons_by_user[0]
+    context.user_data["curr_lesson"] = first_lesson
     kb = get_flip_with_cancel_INLINEKB(
         0, len(lessons_by_user), CALLBACK_USER_LESSON_PATTERN
     )
@@ -77,14 +85,46 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     отменять не поздее чем за 2 часа до занятия
 
     Обновить информацию в таблице lesson
-    удалить строчку из user_lesson
     обновить количество уроков в абонименте
+    удалить строчку из user_lesson
     """
     user = context.user_data.get("curr_user")
     if user is None:
         return await update.callback_query.edit_message_text(
             "Вы не записаны ни на одно занятие!"
         )
+    lesson: Lesson | None = context.user_data.get("curr_lesson")
+    if lesson is None:
+        await update.message.reply_text("Не удалось удалить урок, попробуйте снова!")
+        return
+
+    lesson_dt_utc = datetime.strptime(lesson.time_start, DATETIME_FORMAT) - timedelta(
+        hours=4
+    )
+    user_dt_utc = datetime.now(timezone.utc)
+    user_dt_utc = datetime(
+        user_dt_utc.year,
+        user_dt_utc.month,
+        user_dt_utc.day,
+        user_dt_utc.hour,
+        user_dt_utc.minute,
+    )
+    diff_lesson_user_time = lesson_dt_utc - user_dt_utc
+    if diff_lesson_user_time.seconds // 3600 < 2:
+        return await update.message.reply_text(
+            "До занятия осталось меньше 2х часов. Отменить занятие не получится"
+        )
+
+    try:
+        await update_info_after_cancel_lesson(lesson, user)
+    except SubscriptionError as e:
+        return await update.message.reply_text(str(e))
+    except sqlite3.Error as e:
+        logging.getLogger(__name__).exception(e)
+        return await update.callback_query.edit_message_text(
+            "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!"
+        )
+    await update.callback_query.edit_message_text("Занятие успешно отменено!")
 
 
 async def user_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -130,6 +170,7 @@ async def _lessons_button(
     query = update.callback_query
     await query.answer()
 
+    print(query.data)
     current_index = int(query.data[len(pattern) :])
     context.user_data["curr_lesson"] = lessons[current_index]
     kb = kb_func(current_index, len(lessons), pattern)
@@ -180,8 +221,6 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
             "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!"
         )
 
-    db = await get_db()
-    await db.commit()
     await query.edit_message_text(
         "Вы успешно записались на занятие!", reply_markup=None
     )

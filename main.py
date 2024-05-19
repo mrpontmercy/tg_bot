@@ -9,6 +9,7 @@ from db import close_db
 from init_handlers import (
     ACTIVATE_KEY_HANDLER,
     ADMIN_HANDLER,
+    CQH_CANCEL_LESSON,
     CQH_LESSON_BUTTONS,
     CQH_SUBSCRIBE_LESSON,
     CQH_USER_LESSON_BUTTONS,
@@ -56,6 +57,7 @@ def main():
     app.add_handler(SHOW_USER_LESSONS_HANDLER)
     app.add_handler(ACTIVATE_KEY_HANDLER)
     app.add_handler(CQH_SUBSCRIBE_LESSON)
+    app.add_handler(CQH_CANCEL_LESSON)
     app.add_handler(CQH_LESSON_BUTTONS)
     app.add_handler(CQH_USER_LESSON_BUTTONS)
 

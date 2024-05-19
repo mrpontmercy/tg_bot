@@ -21,6 +21,7 @@ from handlers.admin import (
 from handlers.cancel import cancel
 from handlers.lesson import (
     available_lessons_button,
+    cancel_lesson,
     show_lessons,
     show_my_lessons,
     subscribe_to_lesson,
@@ -123,7 +124,11 @@ ACTIVATE_KEY_HANDLER = CommandHandler(
 )
 
 CQH_SUBSCRIBE_LESSON = CallbackQueryHandler(
-    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PATTERN + "_subscribe$"
+    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
+)
+
+CQH_CANCEL_LESSON = CallbackQueryHandler(
+    cancel_lesson, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN + "cancel$"
 )
 
 CQH_LESSON_BUTTONS = CallbackQueryHandler(
