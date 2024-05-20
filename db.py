@@ -16,7 +16,7 @@ async def get_db():
     return get_db.db
 
 
-async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict]:
+async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict] | list:
     cursor = await _get_cursor(sql, params)
     rows = await cursor.fetchall()
     results = []
@@ -24,28 +24,6 @@ async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict]:
         results.append(_get_result_with_column_names(cursor, row_))
     await cursor.close()
     return results
-
-
-async def fetch_all2(sql, params: Iterable[Any] | None = None) -> list[dict]:
-    result = []
-    async with aiosqlite.connect(config.SQLITE_DB_FILE) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(sql, params) as cursor:
-            cursor.description
-            async for row in cursor:
-                result.append(_get_result_with_column_names(cursor, row))
-
-    return result
-
-
-async def execute2(
-    sql, params: Iterable[Any] | None = None, *, autocommit: bool = True
-) -> None:
-    async with aiosqlite.connect(config.SQLITE_DB_FILE) as db:
-        db.row_factory = aiosqlite.Row
-        await db.execute(sql, params)
-        if autocommit:
-            await db.commit()
 
 
 async def fetch_one(sql, params: Iterable[Any] | None = None) -> dict | None:

@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from all_strings import GREETINGS
 from db import execute, fetch_one
+from handlers.start import START
 from services.register import (
     insert_user,
     validate_message,
@@ -26,10 +27,12 @@ async def register_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     full_info = [user.id, user.username] + update.effective_message.text.split(" ")
     try:
         validated_message = validate_message(full_info)
-    except BaseException as e:
-        return await update.effective_message.reply_text(
-            "Ошибка в данных, попробуйте снова. Возможная ошибка \n\n" + e
+    except Exception as e:
+        logger.exception(e)
+        await update.effective_message.reply_text(
+            "Ошибка в данных, попробуйте снова. Возможная ошибка:\n\n" + str(e)
         )
+        return REGISTER
 
     params = validated_message.to_dict()
     try:

@@ -1,10 +1,40 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
+KB_CONFIRMATION = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton("Да", callback_data="confirm_action"),
+            InlineKeyboardButton("Нет", callback_data="cancel_action"),
+        ]
+    ]
+)
 
 KB_START_COMMAND = ReplyKeyboardMarkup(
-    [["Активировать ключ"], ["Доступные занятия", "Мои занятия"], ["Отменить"]],
+    [
+        ["Регистрация", "Активировать ключ"],
+        ["Доступные занятия", "Мои занятия"],
+        ["Отменить"],
+    ],
     one_time_keyboard=True,
     input_field_placeholder="Что вы хотите сделать?",
+)
+
+KB_START_COMMAND_REGISTERED = ReplyKeyboardMarkup(
+    [
+        ["Активировать ключ", "Оставшееся количество занятий"],
+        ["Доступные занятия", "Мои занятия"],
+        ["Отменить"],
+    ],
+    one_time_keyboard=True,
+    input_field_placeholder="Что вы хотите сделать?",
+)
+
+KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
+    [
+        ["Создать ключ", "Доступные ключи"],
+        ["Обновить уроки", "Добавить преподователя"],
+    ],
+    one_time_keyboard=True,
 )
 
 

@@ -1,5 +1,7 @@
+import logging
 import os
 import random
+import sqlite3
 import string
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
@@ -8,7 +10,10 @@ from telegram.constants import ParseMode
 
 from config import CALLBACK_SUB_PATTERN, LESSONS_DIR
 from db import execute
-from services.kb import get_flip_with_cancel_INLINEKB
+from services.admin import update_user_to_lecturer
+from services.db import get_user, get_user_by_phone_number
+from services.exceptions import UserError
+from services.kb import KB_ADMIN_COMMAND, get_flip_with_cancel_INLINEKB
 from services.lesson import get_lessons_from_file
 from services.subscription import get_available_subs, get_subs
 from services.templates import render_template
@@ -16,13 +21,11 @@ from services.templates import render_template
 
 unity = string.ascii_letters + string.digits
 
-CHOOSING, GET_CSV_FILE, NUM_OF_CLASSES = range(3)
+CHOOSING, GET_CSV_FILE, LECTURER_PHONE, NUM_OF_CLASSES = range(4)
 
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    kb = ReplyKeyboardMarkup(
-        [["Создать ключ", "Доступные ключи", "Обновить уроки"]], one_time_keyboard=True
-    )
+    kb = KB_ADMIN_COMMAND
     await update.message.reply_text(
         "Привет, в режиме АДМИНА можно создать ключ подписки. Нажми соответствующую кнопку!\n\nЧтобы прервать эту коману напиши: cancel или /cancel",
         reply_markup=kb,
@@ -30,13 +33,38 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return CHOOSING
 
 
+async def enter_lecturer_phone_number(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+    await update.message.reply_text("Введите норер телефона преподователя!")
+    return LECTURER_PHONE
+
+
+async def make_lecturer(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    ph_n = update.message.text  # Валидация на уровне Хендлера
+    try:
+        user = await get_user_by_phone_number(ph_n)
+    except UserError as e:
+        await update.message.reply_text(str(e))
+        return LECTURER_PHONE
+
+    try:
+        await update_user_to_lecturer(user.id)
+    except sqlite3.Error as e:
+        logging.getLogger(__name__).exception(e)
+        await update.message.reply_text("Что-то пошло не так!")
+        return ConversationHandler.END
+
+    await update.message.reply_text(
+        f"Пользователь с номером {ph_n} успешно обновлен до `Преподователь`"
+    )
+    return ConversationHandler.END
+
+
 async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_message.chat_id
     await context.bot.send_message(
-        chat_id,
-        "Отправьте файл с уроками установленной формы.\n"
-        "Чтобы завершить операцию нажмите: /cancel",
-        reply_markup=ReplyKeyboardRemove(),
+        chat_id, "Отправьте файл с уроками установленной формы.\n"
     )
     return GET_CSV_FILE
 
@@ -54,9 +82,9 @@ async def insert_into_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return GET_CSV_FILE
     for lesson in lessons:
         params = lesson.to_dict()
-        # TODO добавить tg_id_lecturer
+        # TODO добавить lecturer_id
         await execute(
-            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, tg_id_lecturer) VALUES (:title, :time_start,:num_of_seats, :lecturer, :tg_id_lecturer)""",
+            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer, :lecturer_id)""",
             params,
         )
     os.remove(saved_file_path)
@@ -118,7 +146,7 @@ async def generate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["sub_key"] = sub_key
     answer = f"Отлично, теперь введите количество уроков для подписки!"
-    await update.effective_user.send_message(answer, reply_markup=ReplyKeyboardRemove())
+    await update.effective_user.send_message(answer)
     return NUM_OF_CLASSES
 
 

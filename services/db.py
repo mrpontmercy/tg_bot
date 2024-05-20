@@ -57,7 +57,7 @@ async def execute_delete(
     await execute(sql, params, autocommit=autocommit)
 
 
-async def fetch_one_user(params: Iterable[Any]):
+async def fetch_one_user_by_tg_id(params: Iterable[Any]):
     sql = select_where("user", "*", "telegram_id=:telegram_id")
     row = await fetch_one(sql, params)
     if row is None:
@@ -82,9 +82,14 @@ async def fetch_one_subscription_where_cond(
 
 
 async def get_user(telegram_id: int):
-    user = await fetch_one_user({"telegram_id": telegram_id})
-
-    if user is None:
-        raise UserError("Пользователь не зарегестрирован!")
+    user = await fetch_one_user_by_tg_id({"telegram_id": telegram_id})
 
     return user
+
+
+async def get_user_by_phone_number(phone_number):
+    sql = select_where("user", "*", "phone_number=:phone_number")
+    row = await fetch_one(sql, {"phone_number": phone_number})
+    if row is None:
+        raise UserError("Пользователь с таким номером не зарегестрирован")
+    return UserID(**row) if row is not None else None

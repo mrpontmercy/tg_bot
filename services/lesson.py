@@ -1,14 +1,16 @@
 import csv
+from datetime import datetime, timedelta, timezone
 import logging
 from pathlib import Path
 
+from config import DATETIME_FORMAT
 from db import fetch_all, fetch_one, get_db
 from services.db import (
     execute_delete,
     execute_insert,
     execute_update,
     fetch_one_subscription_where_cond,
-    fetch_one_user,
+    fetch_one_user_by_tg_id,
     select_where,
 )
 from services.exceptions import (
@@ -51,7 +53,7 @@ async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
 
 
 async def check_user_in_db(telegram_id: int):
-    curr_user_db = await fetch_one_user({"telegram_id": telegram_id})
+    curr_user_db = await fetch_one_user_by_tg_id({"telegram_id": telegram_id})
 
     return curr_user_db
 
@@ -157,7 +159,8 @@ async def get_available_lessons_from_db():
 async def get_user_lessons(user_id) -> list[Lesson]:
     lessons = await _fetch_all_user_lessons(user_id)
 
-    if lessons is None:
+    print(f"{lessons=}")
+    if lessons is None or not lessons:
         raise LessonError("Не удалось найти занятия пользователя!")
 
     res = []
@@ -167,6 +170,21 @@ async def get_user_lessons(user_id) -> list[Lesson]:
 
 
 async def _fetch_all_user_lessons(user_id: str | int):
-    sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.tg_id_lecturer from lesson l \
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
             join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
+
+
+def calculate_timedelta(lesson_start_dt):
+    lesson_dt_utc = datetime.strptime(lesson_start_dt, DATETIME_FORMAT) - timedelta(
+        hours=4
+    )
+    user_dt_utc = datetime.now(timezone.utc)
+    user_dt_utc = datetime(
+        user_dt_utc.year,
+        user_dt_utc.month,
+        user_dt_utc.day,
+        user_dt_utc.hour,
+        user_dt_utc.minute,
+    )
+    return lesson_dt_utc - user_dt_utc

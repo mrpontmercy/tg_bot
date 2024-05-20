@@ -27,6 +27,7 @@ class User:
 @dataclass
 class UserID(User):
     id: int
+    status: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -37,6 +38,7 @@ class UserID(User):
             "s_name": self.s_name,
             "phone_number": self.phone_number,
             "email": self.email,
+            "status": self.status,
         }
 
 
@@ -63,7 +65,7 @@ class Lesson:
     time_start: str
     num_of_seats: str | int
     lecturer: str
-    tg_id_lecturer: str | int
+    lecturer_id: str | int
 
     def __post_init__(self):
         isinstances = [
@@ -72,7 +74,7 @@ class Lesson:
             isinstance(self.time_start, str),
             isinstance(self.num_of_seats, (str, int)),
             isinstance(self.lecturer, str),
-            isinstance(self.tg_id_lecturer, (str, int)),
+            isinstance(self.lecturer_id, (str, int)),
         ]
         if not all(isinstances):
             raise ColumnCSVError("Неверно заполнены столбцы!")
@@ -84,7 +86,7 @@ class Lesson:
             "time_start": self.time_start,
             "num_of_seats": self.num_of_seats,
             "lecturer": self.lecturer,
-            "tg_id_lecturer": self.tg_id_lecturer,
+            "lecturer_id": self.lecturer_id,
         }
 
         return result
