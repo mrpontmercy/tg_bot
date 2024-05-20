@@ -123,15 +123,20 @@ def get_lessons_from_file(file_name: Path) -> list[Lesson] | None:
     lessons: list[Lesson] = []
     with open(file_name, "r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
-        try:
-            for row in reader:
-                lessons.append(Lesson(**row))
-        except KeyError as e:
-            logging.getLogger(__name__).exception(e)
-            return None
-        except ColumnCSVError("Неверно заполнен файл с уроками") as e:
-            logging.getLogger(__name__).exception(e)
-            return None
+        for row in reader:
+            try:
+                l = Lesson(**row)
+            except (
+                TypeError,
+                KeyError,
+                ColumnCSVError("Неверно заполнен файл с уроками"),
+            ) as e:
+                logging.getLogger(__name__).exception(e)
+                return None
+            except Exception as e:
+                logging.getLogger(__name__).exception(e)
+            else:
+                lessons.append(l)
 
     return lessons
 

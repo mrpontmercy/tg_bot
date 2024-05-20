@@ -26,6 +26,7 @@ from handlers.admin import (
     update_command,
 )
 from handlers.cancel import cancel, sub_cancel
+from handlers.confirmation import cancel_action_button, confirm_your_action
 from handlers.lesson import (
     available_lessons_button,
     cancel_lesson,
@@ -35,14 +36,52 @@ from handlers.lesson import (
     user_lessons_button,
 )
 from handlers.register import REGISTER, register_command, register_user
-from handlers.start import ACTIVATE_KEY, START, start_command
+from handlers.start import start_command
 from services.filters import (
     ADMIN_AND_PRIVATE_FILTER,
     ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
     ADMIN_FILTER,
 )
 from services.filters import PRIVATE_CHAT_FILTER
+from services.states import ConfirmStates, StartHandlerStates
 
+CQH_CONFIRM_SUBSCRIBE = CallbackQueryHandler(
+    confirm_your_action, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
+)
+
+CQH_CONFIRM_SUBCRIBE_YES = CallbackQueryHandler(
+    subscribe_to_lesson, pattern="^confirm_action$"
+)
+
+CQH_CONFIRM_SUBCRIBE_CANCEL = CallbackQueryHandler(
+    cancel_action_button, pattern="^cancel_action$"
+)
+
+CQH_SUBSCRIBE_LESSON = CallbackQueryHandler(
+    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
+)
+
+CQH_CANCEL_LESSON = CallbackQueryHandler(
+    cancel_lesson, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN + "cancel$"
+)
+
+CQH_LESSON_BUTTONS = CallbackQueryHandler(
+    available_lessons_button, pattern="^" + config.CALLBACK_LESSON_PATTERN
+)
+CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
+    user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN
+)
+
+# CONFIRM_SUBSCRIPTION = ConversationHandler(
+#     CQH_CONFIRM_SUBSCRIBE,
+#     states={
+#         ConfirmStates.CONFIRMATION: [
+#             CQH_CONFIRM_SUBCRIBE_YES,
+#         ],
+#     },
+#     fallbacks=[CQH_CONFIRM_SUBCRIBE_CANCEL],
+#     map_to_parent={ConversationHandler.END: StartHandlerStates.START},
+# )
 
 REGISTER_USER_HANDLER = ConversationHandler(
     [
@@ -64,7 +103,7 @@ REGISTER_USER_HANDLER = ConversationHandler(
         CommandHandler(["cancel"], sub_cancel, filters=PRIVATE_CHAT_FILTER),
         MessageHandler(filters.Regex("cancel") & PRIVATE_CHAT_FILTER, sub_cancel),
     ],
-    map_to_parent={ConversationHandler.END: START},
+    map_to_parent={ConversationHandler.END: StartHandlerStates.START},
 )
 
 START_HANDLER = ConversationHandler(
@@ -72,7 +111,7 @@ START_HANDLER = ConversationHandler(
         CommandHandler(["start"], start_command, filters=PRIVATE_CHAT_FILTER),
     ],
     states={
-        START: [
+        StartHandlerStates.START: [
             MessageHandler(
                 filters.Regex("^Доступные занятия$") & PRIVATE_CHAT_FILTER, show_lessons
             ),
@@ -89,12 +128,18 @@ START_HANDLER = ConversationHandler(
             ),
             REGISTER_USER_HANDLER,
         ],
-        ACTIVATE_KEY: [
+        StartHandlerStates.ACTIVATE_KEY: [
             MessageHandler(
                 filters=PRIVATE_CHAT_FILTER
                 & filters.Regex("^(?!cancel$)(?!Отменить$)(?!\/cancel$).+"),
                 callback=register_sub_key_to_user,
             )
+        ],
+        StartHandlerStates.CHOOSING_LESSON: [
+            CQH_LESSON_BUTTONS,
+            CQH_USER_LESSON_BUTTONS,
+            CQH_SUBSCRIBE_LESSON,
+            CQH_CANCEL_LESSON,
         ],
     },
     fallbacks=[
@@ -104,18 +149,6 @@ START_HANDLER = ConversationHandler(
         ),
     ],
 )
-
-# REGISTER_USER_HANDLER = ConversationHandler(
-#     [CommandHandler(["register"], register_command, filters=private_chat_filter)],
-#     states={
-#         REGISTER: [MessageHandler(filters.TEXT & private_chat_filter, register_user)]
-#     },
-#     fallbacks=[
-#         CommandHandler(["cancel"], cancel, filters=private_chat_filter),
-#         MessageHandler(filters.Regex("cancel") & private_chat_filter, cancel),
-#     ],
-# )
-
 
 ADMIN_HANDLER = ConversationHandler(
     [CommandHandler("admin", admin_command, filters=ADMIN_AND_PRIVATE_FILTER)],
@@ -168,19 +201,4 @@ ADMIN_HANDLER = ConversationHandler(
             callback=cancel,
         ),
     ],
-)
-
-CQH_SUBSCRIBE_LESSON = CallbackQueryHandler(
-    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
-)
-
-CQH_CANCEL_LESSON = CallbackQueryHandler(
-    cancel_lesson, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN + "cancel$"
-)
-
-CQH_LESSON_BUTTONS = CallbackQueryHandler(
-    available_lessons_button, pattern="^" + config.CALLBACK_LESSON_PATTERN
-)
-CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
-    user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN
 )

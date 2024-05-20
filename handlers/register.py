@@ -5,7 +5,6 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from all_strings import GREETINGS
 from db import execute, fetch_one
-from handlers.start import START
 from services.register import (
     insert_user,
     validate_message,

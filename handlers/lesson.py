@@ -11,8 +11,6 @@ from config import (
     CALLBACK_USER_LESSON_PATTERN,
     DATETIME_FORMAT,
 )
-from db import get_db
-from handlers.start import START
 from services.db import get_user
 from services.exceptions import LessonError, SubscriptionError, UserError
 from services.kb import get_flip_with_cancel_INLINEKB, get_lesson_INLINEKB
@@ -25,6 +23,7 @@ from services.lesson import (
     process_sub_to_lesson,
     update_info_after_cancel_lesson,
 )
+from services.states import StartHandlerStates
 from services.templates import render_template
 from services.utils import Lesson
 
@@ -43,7 +42,7 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user is None:
         await update.message.reply_text("Пользователь не зарегестрирован!")
-        return START
+        return StartHandlerStates.START
 
     context.user_data["curr_user"] = user
 
@@ -51,7 +50,7 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lessons_by_user = await get_user_lessons(user.id)
     except LessonError as e:
         await update.message.reply_text(str(e))
-        return START
+        return StartHandlerStates.START
     print(f"{lessons_by_user=}")
     first_lesson: Lesson = lessons_by_user[0]
     context.user_data["curr_lesson"] = first_lesson
@@ -63,7 +62,7 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
-    return START
+    return StartHandlerStates.START
 
 
 async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -75,7 +74,7 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lessons = await get_available_lessons_from_db()
     except LessonError as e:
         await update.effective_message.reply_text(str(e))
-        return START
+        return StartHandlerStates.START
 
     context.user_data["curr_lesson"] = lessons[0]
     kb = get_lesson_INLINEKB(0, len(lessons), CALLBACK_LESSON_PATTERN)
@@ -85,7 +84,7 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
-    return START
+    return StartHandlerStates.START
 
 
 async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -101,18 +100,18 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(
             "Вы не записаны ни на одно занятие!"
         )
-        return START
+        return StartHandlerStates.START
     lesson: Lesson | None = context.user_data.get("curr_lesson")
     if lesson is None:
         await update.message.reply_text("Не удалось удалить урок, попробуйте снова!")
-        return START
+        return StartHandlerStates.START
 
     before_lesson_time = calculate_timedelta(lesson.time_start)
     if before_lesson_time.seconds // 3600 < 2:
         await update.message.reply_text(
             "До занятия осталось меньше 2х часов. Отменить занятие не получится"
         )
-        return START
+        return StartHandlerStates.START
 
     try:
         await update_info_after_cancel_lesson(lesson, user)
@@ -124,7 +123,7 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!"
         )
     await update.callback_query.edit_message_text("Занятие успешно отменено!")
-    return START
+    return StartHandlerStates.START
 
 
 async def user_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,13 +132,13 @@ async def user_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.callback_query.edit_message_text(
             "Вы не записаны ни на одно занятие!"
         )
-        return START
+        return StartHandlerStates.START
 
     try:
         lessons_by_user = await get_user_lessons(user.id)
     except LessonError as e:
         await update.callback_query.edit_message_text(str(e))
-        return START
+        return StartHandlerStates.START
 
     kb_func = get_flip_with_cancel_INLINEKB
     await _lessons_button(
@@ -149,7 +148,7 @@ async def user_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         update=update,
         context=context,
     )
-    return START
+    return StartHandlerStates.START
 
 
 async def available_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -157,11 +156,11 @@ async def available_lessons_button(update: Update, context: ContextTypes.DEFAULT
         lessons = await get_available_lessons_from_db()
     except LessonError as e:
         await update.callback_query.edit_message_text(str(e))
-        return START
+        return StartHandlerStates.START
 
     kb_func = get_lesson_INLINEKB
     await _lessons_button(lessons, kb_func, CALLBACK_LESSON_PATTERN, update, context)
-    return START
+    return StartHandlerStates.START
 
 
 async def _lessons_button(
@@ -194,7 +193,6 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
     Уменьшаем количество доступных мест у занятия
     Записываем в M2M информацию о пользователе и занятии
     """
-    user = update.message.from_user
     query = update.callback_query
     await query.answer()
 
@@ -203,14 +201,14 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
         curr_user_db = await check_user_in_db(user_tg_id)
     except UserError:
         await query.edit_message_text(str(e) + "\nПожалуйста, зарегестрируйтесь!")
-        return START
+        return ConversationHandler.END
 
     try:
         curr_lesson = context.user_data["curr_lesson"]
     except KeyError as e:
         logging.getLogger(__name__).exception(e)
         await query.edit_message_text("Что-то пошло не так!")
-        return START
+        return ConversationHandler.END
 
     del context.user_data["curr_lesson"]
 
@@ -218,21 +216,21 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
         sub_by_user_id = await get_user_subscription(curr_user_db.id)
     except SubscriptionError as e:
         await query.edit_message_text(str(e))
-        return START
+        return ConversationHandler.END
 
     try:
         await process_sub_to_lesson(curr_lesson, sub_by_user_id)
     except LessonError as e:
         await query.edit_message_text(str(e))
-        return START
+        return ConversationHandler.END
     except sqlite3.Error as e:
         logging.getLogger(__name__).exception(e)
         await query.edit_message_text(
             "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!"
         )
-        return START
+        return ConversationHandler.END
 
     await query.edit_message_text(
         "Вы успешно записались на занятие!", reply_markup=None
     )
-    return START
+    return ConversationHandler.END

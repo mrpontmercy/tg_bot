@@ -79,6 +79,7 @@ async def insert_into_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.effective_user.send_message(
             "Неверно заполнен файл. Попробуй с другим файлом."
         )
+        os.remove(saved_file_path)
         return GET_CSV_FILE
     for lesson in lessons:
         params = lesson.to_dict()
@@ -87,7 +88,6 @@ async def insert_into_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE)
             """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer, :lecturer_id)""",
             params,
         )
-    os.remove(saved_file_path)
     await context.bot.send_message(
         chat_id=update.effective_message.chat_id,
         text="Уроки успешно добавлены в общий список",
