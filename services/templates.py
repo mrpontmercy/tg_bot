@@ -9,7 +9,7 @@ def render_template(template_name: str, data: dict | None = None, err=None):
         data = {}
 
     template = _template_env().get_template(template_name)
-    render = template.render(err=err, **data).replace("<br>", "\n")
+    render = template.render(err=err, **data).replace("\n", " ").replace("<br>", "\n")
     return render
 
 

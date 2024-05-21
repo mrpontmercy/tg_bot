@@ -12,6 +12,7 @@ from services.exceptions import (
 )
 from services.db import get_user
 from services.lesson import get_user_subscription
+from services.reply_text import send_error_message
 from services.states import StartHandlerStates
 from services.templates import render_template
 
@@ -26,10 +27,7 @@ async def activate_key_command(
         user = await get_user(update.effective_user.id)
     except UserError as e:
         logger.exception(e)
-        await update.message.reply_text(
-            "Что-то пошло не так. Возможная ошибка\n\n" + str(e),
-            parse_mode=ParseMode.HTML,
-        )
+        await send_error_message(update, err=str(e))
         return
 
     await update.message.reply_text("Отправьте ключ абонимента!")
@@ -44,15 +42,13 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         args = validate_args(mess_args)
     except InputMessageError as e:
         logger.exception(e)
-        await update.effective_message.reply_text(
-            render_template("error.jinja", err=str(e)), parse_mode=ParseMode.HTML
-        )
+        await send_error_message(update, err=str(e))
         return StartHandlerStates.ACTIVATE_KEY
 
     sub_key = args[0]
     user_tg_id = context.user_data.get("curr_user_tg_id")
     if user_tg_id is None:
-        await update.message.reply_text(render_template("error.jinja", err=str(e)))
+        await send_error_message(update, err=str(e))
         return ConversationHandler.END
     del context.user_data["curr_user_tg_id"]
     try:
@@ -60,15 +56,11 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         final_message = await activate_key(sub_key, user)
     except (InvalidSubKey, UserError) as e:
         logger.exception(e)
-        await update.effective_message.reply_text(
-            render_template("error.jinja", err=str(e)), parse_mode=ParseMode.HTML
-        )
+        await send_error_message(update, err=str(e))
         return StartHandlerStates.ACTIVATE_KEY
     except sqlite3.OperationalError as e:
         logger.exception(e)
-        await update.effective_message.reply_text(
-            render_template("error.jinja", err=str(e)), parse_mode=ParseMode.HTML
-        )
+        await send_error_message(update, err=str(e))
         return ConversationHandler.END
 
     await update.effective_message.reply_text(final_message)
@@ -84,7 +76,7 @@ async def show_number_of_remaining_classes_on_subscription(
         subscription = await get_user_subscription(user_db_id=user.id)
     except SubscriptionError as e:
         logger.exception(e)
-        await update.message.reply_text(str(e))
+        await send_error_message(update, err=str(e))
         return StartHandlerStates.START
     await update.effective_message.reply_text(
         f"У вас осталось {subscription.num_of_classes} занятий на абонименте"

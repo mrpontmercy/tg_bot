@@ -11,6 +11,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = await get_user(update.message.from_user.id)
     if user is None:
         kb = KB_START_COMMAND
+
     kb = KB_START_COMMAND_REGISTERED
     await update.message.reply_text(render_template("start.jinja"), reply_markup=kb)
     return StartHandlerStates.START

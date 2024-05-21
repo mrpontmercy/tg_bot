@@ -26,6 +26,7 @@ from services.kb import (
     get_flip_with_cancel_INLINEKB,
 )
 from services.lesson import get_lessons_from_file
+from services.reply_text import send_error_message
 from services.states import AdminStates
 from services.admin import get_available_subs
 from services.templates import render_template
@@ -56,14 +57,12 @@ async def make_lecturer(update: Update, _: ContextTypes.DEFAULT_TYPE):
         phone_number = validate_phone_number(update.message.text)
     except InputMessageError as e:
         logging.getLogger(__name__).exception(e)
-        await update.message.reply_text(
-            "Что-то пошло не так. Возможная ошибка:\n\n" + str(e)
-        )
+        await send_error_message(update, err=str(e))
         return AdminStates.LECTURER_PHONE
     try:
         user = await get_user_by_phone_number(phone_number)
     except UserError as e:
-        await update.message.reply_text(str(e))
+        await send_error_message(update, err=str(e))
         return AdminStates.LECTURER_PHONE
 
     try:
@@ -122,9 +121,7 @@ async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE
         subs: list[Subscription] = await get_available_subs()
     except SubscriptionError as e:
         logging.getLogger(__name__).exception(e)
-        await update.message.reply_text(
-            "Что-то пошло не так. Возможная ошибка\n\n" + str(e)
-        )
+        await send_error_message(update, err=str(e))
         return AdminStates.CHOOSING
 
     kb = get_flip_keyboard(0, len(subs), CALLBACK_SUB_PATTERN)
