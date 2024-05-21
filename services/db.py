@@ -1,6 +1,6 @@
 from typing import Any, Iterable, Literal
 from db import execute, fetch_one
-from services.exceptions import UserError
+from services.exceptions import SubscriptionError, UserError
 from services.utils import Subscription, UserID
 
 Math_Symbols_TYPE = Literal["=", "<", ">", "<=", ">=" "!=", "<>"]
@@ -60,16 +60,7 @@ async def execute_delete(
 async def fetch_one_user_by_tg_id(params: Iterable[Any]):
     sql = select_where("user", "*", "telegram_id=:telegram_id")
     row = await fetch_one(sql, params)
-    if row is None:
-        raise UserError("Пользователь не зарегестрирован")
     return UserID(**row) if row is not None else None
-
-
-async def fetch_one_user_with_sub(params: Iterable[Any]):
-    sql = "select * from user u join subscription s on u.id=s.user_id WHERE user_id=:user_id"
-    row = await fetch_one(sql, params)
-    user = UserID(**row) if row is not None else None
-    return user
 
 
 async def fetch_one_subscription_where_cond(
@@ -83,6 +74,9 @@ async def fetch_one_subscription_where_cond(
 
 async def get_user(telegram_id: int):
     user = await fetch_one_user_by_tg_id({"telegram_id": telegram_id})
+
+    if user is None:
+        raise UserError("Пользователь не зарегестрирован")
 
     return user
 

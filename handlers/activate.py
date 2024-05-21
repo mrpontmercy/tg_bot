@@ -1,16 +1,19 @@
 import logging
 import sqlite3
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 from services.activate import activate_key, validate_args
 from services.exceptions import (
-    ErrorContextArgs,
+    InputMessageError,
     InvalidSubKey,
     SubscriptionError,
+    UserError,
 )
 from services.db import get_user
 from services.lesson import get_user_subscription
 from services.states import StartHandlerStates
+from services.templates import render_template
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +22,18 @@ async def activate_key_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
-
-    user = await get_user(update.effective_user.id)
-
-    if user is None:
-        await update.message.reply_text("Пользователь не зарегестрирован!")
-        return ConversationHandler.END
+    try:
+        user = await get_user(update.effective_user.id)
+    except UserError as e:
+        logger.exception(e)
+        await update.message.reply_text(
+            "Что-то пошло не так. Возможная ошибка\n\n" + str(e),
+            parse_mode=ParseMode.HTML,
+        )
+        return
 
     await update.message.reply_text("Отправьте ключ абонимента!")
-    context.user_data["curr_user"] = user
+    context.user_data["curr_user_tg_id"] = user.telegram_id
     return StartHandlerStates.ACTIVATE_KEY
 
 
@@ -36,28 +42,32 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
 
     try:
         args = validate_args(mess_args)
-    except ErrorContextArgs as e:
+    except InputMessageError as e:
         logger.exception(e)
-        await update.effective_message.reply_text(str(e))
+        await update.effective_message.reply_text(
+            render_template("error.jinja", err=str(e)), parse_mode=ParseMode.HTML
+        )
         return StartHandlerStates.ACTIVATE_KEY
 
     sub_key = args[0]
-    user = context.user_data.get("curr_user")
-    if user is None:
-        await update.message.reply_text(
-            "Что-то пошло не так, попробуйте с самого начала.\n\n/start"
-        )
+    user_tg_id = context.user_data.get("curr_user_tg_id")
+    if user_tg_id is None:
+        await update.message.reply_text(render_template("error.jinja", err=str(e)))
         return ConversationHandler.END
-    del context.user_data["curr_user"]
+    del context.user_data["curr_user_tg_id"]
     try:
+        user = await get_user(user_tg_id)
         final_message = await activate_key(sub_key, user)
-    except InvalidSubKey as e:
-        await update.effective_message.reply_text(str(e))
+    except (InvalidSubKey, UserError) as e:
+        logger.exception(e)
+        await update.effective_message.reply_text(
+            render_template("error.jinja", err=str(e)), parse_mode=ParseMode.HTML
+        )
         return StartHandlerStates.ACTIVATE_KEY
     except sqlite3.OperationalError as e:
         logger.exception(e)
         await update.effective_message.reply_text(
-            "Что-то пошло не так. Скорее всего пока данная команда не работает!"
+            render_template("error.jinja", err=str(e)), parse_mode=ParseMode.HTML
         )
         return ConversationHandler.END
 

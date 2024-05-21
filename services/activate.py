@@ -9,7 +9,7 @@ from services.db import (
     execute_update,
 )
 from services.exceptions import (
-    ErrorContextArgs,
+    InputMessageError,
     InvalidSubKey,
     UserError,
 )
@@ -30,7 +30,7 @@ async def activate_key_command(
     Активируем пользователю подписку (Если подписка уже есть, то продлеваем количество дней, старый ключ удаляем)
     """
     if args is not None and len(args) != 0:
-        raise ErrorContextArgs("Введен неверный ключ!")
+        raise InputMessageError("Введен неверный ключ!")
 
     user = await fetch_one_user_by_tg_id({"telegram_id": telegram_id})
 
@@ -44,7 +44,7 @@ async def activate_key_command(
 
 def validate_args(args: list[str] | None):
     if args is not None and len(args) != 1:
-        raise ErrorContextArgs(
+        raise InputMessageError(
             "Нужно ввести только ключ абонимента!.\nПопробуйте снова."
         )
 

@@ -14,7 +14,6 @@ from services.db import (
     select_where,
 )
 from services.exceptions import (
-    ColumnCSVError,
     LessonError,
     SubscriptionError,
 )
@@ -126,32 +125,23 @@ def get_lessons_from_file(file_name: Path) -> list[Lesson] | None:
         for row in reader:
             try:
                 l = Lesson(**row)
-            except (
-                TypeError,
-                KeyError,
-                ColumnCSVError("Неверно заполнен файл с уроками"),
-            ) as e:
+            except (TypeError, KeyError) as e:
                 logging.getLogger(__name__).exception(e)
                 return None
             except Exception as e:
                 logging.getLogger(__name__).exception(e)
+                return None
             else:
                 lessons.append(l)
 
     return lessons
 
 
-async def get_available_lessons_from_db():
-    sql = (
-        select_where(
-            "lesson",
-            "*",
-            "num_of_seats>0",
-        )
-        + " ORDER BY time_start ASC"
-    )
+async def get_available_lessons_from_db(user_id: int):
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
+            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id WHERE ul.lesson_id is NULL"""
 
-    rows = await fetch_all(sql)
+    rows = await fetch_all(sql, params={"user_id": user_id})
     if not rows:
         raise LessonError("Не удалось найти занятия!")
     lessons: list[Lesson] = []
@@ -164,7 +154,6 @@ async def get_available_lessons_from_db():
 async def get_user_lessons(user_id) -> list[Lesson]:
     lessons = await _fetch_all_user_lessons(user_id)
 
-    print(f"{lessons=}")
     if lessons is None or not lessons:
         raise LessonError("Не удалось найти занятия пользователя!")
 

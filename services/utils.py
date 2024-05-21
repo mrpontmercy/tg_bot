@@ -4,6 +4,11 @@ from typing import Any
 from services.exceptions import ColumnCSVError
 
 
+PHONE_NUMBER_PATTERN = r"^[8][0-9]{10}$"  # Для российских номеров
+FS_NAME_PATTERN = r"^[a-zA-Zа-яА-Я]{3,}$"
+EMAIL_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+
+
 @dataclass
 class User:
     telegram_id: int
@@ -60,16 +65,15 @@ class Subscription:
 
 @dataclass
 class Lesson:
-    id: str | int
     title: str
     time_start: str
     num_of_seats: str | int
     lecturer: str
     lecturer_id: str | int
+    id: str | int | None = None
 
     def __post_init__(self):
         isinstances = [
-            isinstance(self.id, (str, int)),
             isinstance(self.title, str),
             isinstance(self.time_start, str),
             isinstance(self.num_of_seats, (str, int)),

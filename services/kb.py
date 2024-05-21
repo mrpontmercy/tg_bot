@@ -38,11 +38,35 @@ KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
 )
 
 
+def get_confirmation_keyboard(prefix: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Подтвердить", callback_data=f"{prefix}_confirm_action"
+                ),
+                InlineKeyboardButton(
+                    "Отменить", callback_data=f"{prefix}_cancel_action"
+                ),
+            ]
+        ]
+    )
+    return kb
+
+
 def get_flip_with_cancel_INLINEKB(
     current_lesson_index, number_of_lessons, prefix
 ) -> InlineKeyboardMarkup:
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
     keyboard.append([InlineKeyboardButton("Отменить", callback_data=f"{prefix}cancel")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_flip_keyboard(current_lesson_index, number_of_lessons, prefix):
+    keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
+    keyboard.append(
+        [InlineKeyboardButton("Удалить", callback_data=f"{prefix}deleteSub")]
+    )
     return InlineKeyboardMarkup(keyboard)
 
 

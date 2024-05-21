@@ -12,21 +12,22 @@ from handlers.activate import (
     show_number_of_remaining_classes_on_subscription,
 )
 from handlers.admin import (
-    CHOOSING,
-    GET_CSV_FILE,
-    LECTURER_PHONE,
-    NUM_OF_CLASSES,
     admin_command,
     enter_lecturer_phone_number,
     generate_sub,
     insert_into_lesson,
     list_available_subs,
     make_lecturer,
-    send_num_of_classes,
+    make_new_subscription,
+    subs_button,
     update_command,
 )
 from handlers.cancel import cancel, sub_cancel
-from handlers.confirmation import cancel_action_button, confirm_your_action
+from handlers.confirmation import (
+    cancel_action_button,
+    confirm_action,
+    confirmation_action_handler,
+)
 from handlers.lesson import (
     available_lessons_button,
     cancel_lesson,
@@ -43,33 +44,32 @@ from services.filters import (
     ADMIN_FILTER,
 )
 from services.filters import PRIVATE_CHAT_FILTER
-from services.states import ConfirmStates, StartHandlerStates
+from services.states import AdminStates, ConfirmStates, StartHandlerStates
 
 CQH_CONFIRM_SUBSCRIBE = CallbackQueryHandler(
-    confirm_your_action, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
+    confirmation_action_handler, pattern=".*(subscribe|cancel|deleteSub)$"
 )
 
 CQH_CONFIRM_SUBCRIBE_YES = CallbackQueryHandler(
-    subscribe_to_lesson, pattern="^confirm_action$"
+    confirm_action, pattern=".*_confirm_action$"
 )
 
 CQH_CONFIRM_SUBCRIBE_CANCEL = CallbackQueryHandler(
-    cancel_action_button, pattern="^cancel_action$"
+    cancel_action_button, pattern=".*_cancel_action$"
 )
 
 CQH_SUBSCRIBE_LESSON = CallbackQueryHandler(
     subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
 )
 
-CQH_CANCEL_LESSON = CallbackQueryHandler(
-    cancel_lesson, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN + "cancel$"
-)
-
 CQH_LESSON_BUTTONS = CallbackQueryHandler(
-    available_lessons_button, pattern="^" + config.CALLBACK_LESSON_PATTERN
+    available_lessons_button, pattern="^" + config.CALLBACK_LESSON_PATTERN + "\d+"
 )
 CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
-    user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN
+    user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN + "\d+"
+)
+CQH_AVAILABLE_SUBS_BUTTONS = CallbackQueryHandler(
+    subs_button, pattern="^" + config.CALLBACK_SUB_PATTERN + "\d+"
 )
 
 # CONFIRM_SUBSCRIPTION = ConversationHandler(
@@ -135,12 +135,6 @@ START_HANDLER = ConversationHandler(
                 callback=register_sub_key_to_user,
             )
         ],
-        StartHandlerStates.CHOOSING_LESSON: [
-            CQH_LESSON_BUTTONS,
-            CQH_USER_LESSON_BUTTONS,
-            CQH_SUBSCRIBE_LESSON,
-            CQH_CANCEL_LESSON,
-        ],
     },
     fallbacks=[
         CommandHandler(["cancel"], cancel, filters=PRIVATE_CHAT_FILTER),
@@ -148,12 +142,13 @@ START_HANDLER = ConversationHandler(
             filters.Regex("^(cancel|Отменить)$") & PRIVATE_CHAT_FILTER, cancel
         ),
     ],
+    allow_reentry=True,
 )
 
 ADMIN_HANDLER = ConversationHandler(
     [CommandHandler("admin", admin_command, filters=ADMIN_AND_PRIVATE_FILTER)],
     {
-        CHOOSING: [
+        AdminStates.CHOOSING: [
             MessageHandler(
                 filters.Regex("^Создать ключ$") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 generate_sub,
@@ -174,23 +169,27 @@ ADMIN_HANDLER = ConversationHandler(
                 enter_lecturer_phone_number,
             ),
         ],
-        GET_CSV_FILE: [
+        AdminStates.GET_CSV_FILE: [
             MessageHandler(
                 filters.Document.MimeType("text/csv")
                 & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 insert_into_lesson,
             ),
         ],
-        LECTURER_PHONE: [
+        AdminStates.LECTURER_PHONE: [
             MessageHandler(
-                filters.Regex("^[8][0-9]{10}$") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                filters.TEXT
+                & filters.Regex("^(?!cancel$)(?!Отменить$)(?!\/cancel$).+")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 make_lecturer,
             )
         ],
-        NUM_OF_CLASSES: [
+        AdminStates.NUM_OF_CLASSES: [
             MessageHandler(
-                filters.Regex("\d+") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
-                send_num_of_classes,
+                filters.TEXT
+                & filters.Regex("^(?!cancel$)(?!Отменить$)(?!\/cancel$).+")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                make_new_subscription,
             )
         ],
     },

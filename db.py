@@ -18,6 +18,7 @@ async def get_db():
 
 async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict] | list:
     cursor = await _get_cursor(sql, params)
+    # Возможно тут может быть ошибка. Может стоит добавить проверку на None
     rows = await cursor.fetchall()
     results = []
     for row_ in rows:

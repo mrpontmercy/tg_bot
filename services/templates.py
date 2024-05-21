@@ -4,12 +4,12 @@ import jinja2
 from config import TEMPLATE_DIR
 
 
-def render_template(template_name: str, data: dict | None = None):
+def render_template(template_name: str, data: dict | None = None, err=None):
     if data is None:
         data = {}
 
     template = _template_env().get_template(template_name)
-    render = template.render(**data).replace("<br>", "\n")
+    render = template.render(err=err, **data).replace("<br>", "\n")
     return render
 
 
