@@ -42,12 +42,14 @@ from services.filters import (
     ADMIN_AND_PRIVATE_FILTER,
     ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
     ADMIN_FILTER,
+    LECTURER_FILTER,
 )
 from services.filters import PRIVATE_CHAT_FILTER
 from services.states import AdminStates, ConfirmStates, StartHandlerStates
 
 CQH_CONFIRM_SUBSCRIBE = CallbackQueryHandler(
-    confirmation_action_handler, pattern=".*(subscribe|cancel|deleteSub)$"
+    confirmation_action_handler,
+    pattern=f".*({config.CALLBACK_DATA_SUBSCRIBE}|{config.CALLBACK_DATA_CANCEL_LESSON}|{config.CALLBACK_DATA_DELETESUBSCRIPTION})$",
 )
 
 CQH_CONFIRM_SUBCRIBE_YES = CallbackQueryHandler(
@@ -59,17 +61,17 @@ CQH_CONFIRM_SUBCRIBE_CANCEL = CallbackQueryHandler(
 )
 
 CQH_SUBSCRIBE_LESSON = CallbackQueryHandler(
-    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PATTERN + "subscribe$"
+    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PREFIX + "subscribe$"
 )
 
 CQH_LESSON_BUTTONS = CallbackQueryHandler(
-    available_lessons_button, pattern="^" + config.CALLBACK_LESSON_PATTERN + "\d+"
+    available_lessons_button, pattern="^" + config.CALLBACK_LESSON_PREFIX + "\d+"
 )
 CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
-    user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PATTERN + "\d+"
+    user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PREFIX + "\d+"
 )
 CQH_AVAILABLE_SUBS_BUTTONS = CallbackQueryHandler(
-    subs_button, pattern="^" + config.CALLBACK_SUB_PATTERN + "\d+"
+    subs_button, pattern="^" + config.CALLBACK_SUB_PREFIX + "\d+"
 )
 
 # CONFIRM_SUBSCRIPTION = ConversationHandler(
@@ -103,7 +105,9 @@ REGISTER_USER_HANDLER = ConversationHandler(
         CommandHandler(["cancel"], sub_cancel, filters=PRIVATE_CHAT_FILTER),
         MessageHandler(filters.Regex("cancel") & PRIVATE_CHAT_FILTER, sub_cancel),
     ],
-    map_to_parent={ConversationHandler.END: StartHandlerStates.START},
+    map_to_parent={
+        ConversationHandler.END: StartHandlerStates.START,
+    },
 )
 
 START_HANDLER = ConversationHandler(
@@ -126,6 +130,10 @@ START_HANDLER = ConversationHandler(
                 filters.Regex("^Оставшееся количество занятий$") & PRIVATE_CHAT_FILTER,
                 show_number_of_remaining_classes_on_subscription,
             ),
+            MessageHandler(
+                filters.Regex("^Админ панель$") & ADMIN_AND_PRIVATE_FILTER,
+                show_number_of_remaining_classes_on_subscription,
+            ),
             REGISTER_USER_HANDLER,
         ],
         StartHandlerStates.ACTIVATE_KEY: [
@@ -142,7 +150,6 @@ START_HANDLER = ConversationHandler(
             filters.Regex("^(cancel|Отменить)$") & PRIVATE_CHAT_FILTER, cancel
         ),
     ],
-    allow_reentry=True,
 )
 
 ADMIN_HANDLER = ConversationHandler(

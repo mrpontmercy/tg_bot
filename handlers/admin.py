@@ -8,7 +8,7 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
 
-from config import CALLBACK_SUB_PATTERN, LESSONS_DIR
+from config import CALLBACK_SUB_PREFIX, LESSONS_DIR
 from db import execute
 from services.admin import (
     delete_subscription,
@@ -124,7 +124,7 @@ async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE
         await send_error_message(update, err=str(e))
         return AdminStates.CHOOSING
 
-    kb = get_flip_keyboard(0, len(subs), CALLBACK_SUB_PATTERN)
+    kb = get_flip_keyboard(0, len(subs), CALLBACK_SUB_PREFIX)
     sub = subs[0]
     context.user_data["sub_id"] = sub.id
     await message.reply_text(
@@ -150,7 +150,7 @@ async def subs_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return AdminStates.CHOOSING
 
-    current_index = int(query.data[len(CALLBACK_SUB_PATTERN) :])
+    current_index = int(query.data[len(CALLBACK_SUB_PREFIX) :])
     sub = subs[current_index]
     context.user_data["sub_id"] = sub.id
     await query.edit_message_text(
@@ -162,7 +162,7 @@ async def subs_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             },
         ),
         parse_mode=ParseMode.HTML,
-        reply_markup=get_flip_keyboard(current_index, len(subs), CALLBACK_SUB_PATTERN),
+        reply_markup=get_flip_keyboard(current_index, len(subs), CALLBACK_SUB_PREFIX),
     )
 
 

@@ -5,9 +5,19 @@ import sqlite3
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from config import (
+    CALLBACK_DATA_CANCEL_LESSON,
+    CALLBACK_DATA_DELETESUBSCRIPTION,
+    CALLBACK_DATA_SUBSCRIBE,
+)
 from handlers.admin import remove_subscription
-from handlers.lesson import cancel_lesson, subscribe_to_lesson
-from services.kb import KB_CONFIRMATION, get_confirmation_keyboard
+from handlers.lesson import (
+    cancel_lesson,
+    show_lessons,
+    show_my_lessons,
+    subscribe_to_lesson,
+)
+from services.kb import get_confirmation_keyboard
 
 
 async def confirmation_action_handler(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -24,23 +34,30 @@ async def confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    logging.getLogger(__name__).info(f"{query.data=}")
     action = query.data.split("_")[0]
-    match action:
-        case "subscribe":
-            await subscribe_to_lesson(update, context)
-        case "cancel":
-            await cancel_lesson(update, context)
-        case "deleteSub":
-            try:
-                await remove_subscription(update, context)
-                await query.edit_message_text("Абонемент успешно удален!")
-            except sqlite3.Error as e:
-                logging.getLogger(__name__).exception(e)
-                return await query.edit_message_text("Не удалось удалить абонемент!")
+    if action == CALLBACK_DATA_SUBSCRIBE:
+        await subscribe_to_lesson(update, context)
+        await show_lessons(update, context)
+    elif action == CALLBACK_DATA_CANCEL_LESSON:
+        await cancel_lesson(update, context)
+        await show_my_lessons(update, context)
+    elif action == CALLBACK_DATA_DELETESUBSCRIPTION:
+        try:
+            await remove_subscription(update, context)
+            await query.edit_message_text("Абонемент успешно удален!")
+        except sqlite3.Error as e:
+            logging.getLogger(__name__).exception(e)
+            return await query.edit_message_text("Не удалось удалить абонемент!")
 
 
-async def cancel_action_button(update: Update, _: ContextTypes.DEFAULT_TYPE):
+async def cancel_action_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text("Действие отменено", reply_markup=None)
+    kb = context.user_data.get("kb", None)
+    action = query.data.split("_")[0]
+    if action == CALLBACK_DATA_SUBSCRIBE:
+        await show_lessons(update, context)
+    elif action == CALLBACK_DATA_CANCEL_LESSON:
+        await show_my_lessons(update, context)
+
+    await query.edit_message_text("Действие отменено")

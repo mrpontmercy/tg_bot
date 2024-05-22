@@ -5,7 +5,7 @@ from services.exceptions import ColumnCSVError
 
 
 PHONE_NUMBER_PATTERN = r"^[8][0-9]{10}$"  # Для российских номеров
-FS_NAME_PATTERN = r"^[a-zA-Zа-яА-Я]{3,}$"
+FS_NAME_PATTERN = r"^[a-zA-Zа-яёА-ЯЁ]{3,}$"
 EMAIL_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
 

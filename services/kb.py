@@ -1,10 +1,25 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
+from config import (
+    CALLBACK_DATA_CANCEL_LESSON,
+    CALLBACK_DATA_DELETESUBSCRIPTION,
+    CALLBACK_DATA_SUBSCRIBE,
+)
 
 KB_START_COMMAND = ReplyKeyboardMarkup(
     [
         ["Регистрация", "Активировать ключ"],
         ["Доступные занятия", "Мои занятия"],
+        ["Отменить"],
+    ],
+    one_time_keyboard=True,
+    input_field_placeholder="Что вы хотите сделать?",
+)
+
+KB_START_COMMAND_ADMIN = ReplyKeyboardMarkup(
+    [
+        ["Регистрация", "Активировать ключ"],
+        ["Доступные занятия", "Мои занятия", "Админ панель"],
         ["Отменить"],
     ],
     one_time_keyboard=True,
@@ -17,11 +32,11 @@ KB_START_COMMAND_REGISTERED = ReplyKeyboardMarkup(
         ["Доступные занятия", "Мои занятия"],
         ["Отменить"],
     ],
-    one_time_keyboard=True,
+    one_time_keyboard=False,
     input_field_placeholder="Что вы хотите сделать?",
 )
 
-KB_START_COMMAND_REGISTERED = ReplyKeyboardMarkup(
+KB_START_COMMAND_ANother = ReplyKeyboardMarkup(
     [
         ["Мои занятия"],
         ["Отменить"],
@@ -36,6 +51,15 @@ KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
         ["Обновить уроки", "Добавить преподователя"],
     ],
     one_time_keyboard=True,
+)
+
+KB_ADMIN_COMMAND_2 = ReplyKeyboardMarkup(
+    [
+        ["Создать ключ", "Доступные ключи"],
+        ["Обновить уроки", "Добавить преподователя"],
+        ["Назад"],
+    ],
+    one_time_keyboard=False,
 )
 
 
@@ -59,14 +83,24 @@ def get_flip_with_cancel_INLINEKB(
     current_lesson_index, number_of_lessons, prefix
 ) -> InlineKeyboardMarkup:
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
-    keyboard.append([InlineKeyboardButton("Отменить", callback_data=f"{prefix}cancel")])
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                "Отменить", callback_data=f"{prefix}{CALLBACK_DATA_CANCEL_LESSON}"
+            )
+        ]
+    )
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_flip_keyboard(current_lesson_index, number_of_lessons, prefix):
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
     keyboard.append(
-        [InlineKeyboardButton("Удалить", callback_data=f"{prefix}deleteSub")]
+        [
+            InlineKeyboardButton(
+                "Удалить", callback_data=f"{prefix}{CALLBACK_DATA_DELETESUBSCRIPTION}"
+            )
+        ]
     )
     return InlineKeyboardMarkup(keyboard)
 
@@ -84,7 +118,11 @@ def get_lesson_INLINEKB(
 
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
     keyboard.append(
-        [InlineKeyboardButton("Записаться", callback_data=f"{prefix}subscribe")]
+        [
+            InlineKeyboardButton(
+                "Записаться", callback_data=f"{prefix}{CALLBACK_DATA_SUBSCRIBE}"
+            )
+        ]
     )
     return InlineKeyboardMarkup(keyboard)
 

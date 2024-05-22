@@ -11,6 +11,7 @@ from services.exceptions import (
     UserError,
 )
 from services.db import get_user
+from services.kb import KB_START_COMMAND_REGISTERED
 from services.lesson import get_user_subscription
 from services.reply_text import send_error_message
 from services.states import StartHandlerStates
@@ -61,11 +62,11 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
     except sqlite3.OperationalError as e:
         logger.exception(e)
         await send_error_message(update, err=str(e))
-        return ConversationHandler.END
+        return StartHandlerStates.START
 
     await update.effective_message.reply_text(final_message)
 
-    return ConversationHandler.END
+    return StartHandlerStates.START
 
 
 async def show_number_of_remaining_classes_on_subscription(
@@ -78,7 +79,9 @@ async def show_number_of_remaining_classes_on_subscription(
         logger.exception(e)
         await send_error_message(update, err=str(e))
         return StartHandlerStates.START
-    await update.effective_message.reply_text(
-        f"У вас осталось {subscription.num_of_classes} занятий на абонименте"
+    await context.bot.send_message(
+        user.telegram_id,
+        f"У вас осталось {subscription.num_of_classes} занятий на абонименте",
+        reply_markup=KB_START_COMMAND_REGISTERED,
     )
     return StartHandlerStates.START

@@ -3,18 +3,23 @@ import logging
 import sqlite3
 from typing import Callable
 
-from telegram import Update
+from telegram import ReplyKeyboardRemove, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
 from config import (
-    CALLBACK_LESSON_PATTERN,
-    CALLBACK_USER_LESSON_PATTERN,
+    CALLBACK_LESSON_PREFIX,
+    CALLBACK_USER_LESSON_PREFIX,
     DATETIME_FORMAT,
 )
+
 from services.db import get_user
 from services.exceptions import LessonError, SubscriptionError, UserError
-from services.kb import get_flip_with_cancel_INLINEKB, get_lesson_INLINEKB
+from services.kb import (
+    KB_START_COMMAND_REGISTERED,
+    get_flip_with_cancel_INLINEKB,
+    get_lesson_INLINEKB,
+)
 from services.lesson import (
     calculate_timedelta,
     check_user_in_db,
@@ -50,14 +55,17 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         lessons_by_user = await get_user_lessons(user.id)
     except LessonError as e:
-        await update.message.reply_text(str(e))
+        await context.bot.send_message(
+            user_tg_id, str(e), reply_markup=KB_START_COMMAND_REGISTERED
+        )
         return StartHandlerStates.START
     first_lesson: Lesson = lessons_by_user[0]
     context.user_data["curr_lesson"] = first_lesson
     kb = get_flip_with_cancel_INLINEKB(
-        0, len(lessons_by_user), CALLBACK_USER_LESSON_PATTERN
+        0, len(lessons_by_user), CALLBACK_USER_LESSON_PREFIX
     )
-    await update.message.reply_text(
+    await context.bot.send_message(
+        user_tg_id,
         render_template("lesson.jinja", first_lesson.to_dict_lesson_info()),
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
@@ -84,17 +92,20 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         lessons = await get_available_lessons_from_db(user.id)
     except LessonError as e:
-        await update.effective_message.reply_text(str(e))
+        await context.bot.send_message(
+            user_tg_id, str(e), reply_markup=KB_START_COMMAND_REGISTERED
+        )
         return StartHandlerStates.START
 
     context.user_data["curr_lesson"] = lessons[0]
-    kb = get_lesson_INLINEKB(0, len(lessons), CALLBACK_LESSON_PATTERN)
+    kb = get_lesson_INLINEKB(0, len(lessons), CALLBACK_LESSON_PREFIX)
     await context.bot.send_message(
         update.effective_chat.id,
         text=render_template("lesson.jinja", data=lessons[0].to_dict_lesson_info()),
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
+    context.user_data["kb"] = kb
     return StartHandlerStates.START
 
 
@@ -160,7 +171,7 @@ async def user_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     await _lessons_button(
         lessons=lessons_by_user,
         kb_func=kb_func,
-        pattern=CALLBACK_USER_LESSON_PATTERN,
+        pattern=CALLBACK_USER_LESSON_PREFIX,
         update=update,
         context=context,
     )
@@ -183,7 +194,7 @@ async def available_lessons_button(update: Update, context: ContextTypes.DEFAULT
         return StartHandlerStates.START
 
     kb_func = get_lesson_INLINEKB
-    await _lessons_button(lessons, kb_func, CALLBACK_LESSON_PATTERN, update, context)
+    await _lessons_button(lessons, kb_func, CALLBACK_LESSON_PREFIX, update, context)
     return StartHandlerStates.START
 
 
@@ -204,6 +215,7 @@ async def _lessons_button(
     current_index = int(query.data[len(pattern) :])
     context.user_data["curr_lesson"] = lessons[current_index]
     kb = kb_func(current_index, len(lessons), pattern)
+    context.user_data["kb"] = kb
     await query.edit_message_text(
         render_template("lesson.jinja", lessons[current_index].to_dict_lesson_info()),
         reply_markup=kb,
@@ -233,7 +245,9 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     curr_lesson = context.user_data.get("curr_lesson")
     if curr_lesson is None:
-        await query.edit_message_text("Что-то пошло не так!")
+        await query.edit_message_text(
+            "Что-то пошло не так!", reply_markup=ReplyKeyboardRemove()
+        )
         return ConversationHandler.END
 
     del context.user_data["curr_lesson"]

@@ -1,5 +1,5 @@
 from typing import Any, Iterable, Literal
-from db import execute, fetch_one
+from db import execute, fetch_all, fetch_one
 from services.exceptions import SubscriptionError, UserError
 from services.utils import Subscription, UserID
 
@@ -87,3 +87,17 @@ async def get_user_by_phone_number(phone_number):
     if row is None:
         raise UserError("Пользователь с таким номером не зарегестрирован")
     return UserID(**row) if row is not None else None
+
+
+async def get_lecturers():
+    sql = select_where("user", "*", "status='Преподаватель'")
+    rows = await fetch_all(sql)
+
+    if not rows:
+        return None
+
+    res = []
+    for row in rows:
+        res.append(UserID(**row))
+
+    return res
