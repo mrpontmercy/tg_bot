@@ -24,8 +24,8 @@ from services.lesson import (
     calculate_timedelta,
     check_user_in_db,
     get_user_subscription,
-    get_available_lessons_from_db,
-    get_user_lessons,
+    get_available_upcoming_lessons_from_db,
+    get_user_upcoming_lessons,
     process_sub_to_lesson,
     update_info_after_cancel_lesson,
 )
@@ -60,7 +60,7 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["curr_user_tg_id"] = user.telegram_id
 
     try:
-        lessons_by_user = await get_user_lessons(user.id)
+        lessons_by_user = await get_user_upcoming_lessons(user.id)
     except LessonError as e:
         await context.bot.send_message(
             user_tg_id, str(e), reply_markup=KB_START_COMMAND_REGISTERED
@@ -102,7 +102,7 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["curr_user_tg_id"] = user.telegram_id
 
     try:
-        lessons = await get_available_lessons_from_db(user.id)
+        lessons = await get_available_upcoming_lessons_from_db(user.id)
     except LessonError as e:
         await context.bot.send_message(
             user_tg_id, str(e), reply_markup=KB_START_COMMAND_REGISTERED
@@ -173,7 +173,7 @@ async def user_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         user = await get_user(user_tg_id)
-        lessons_by_user = await get_user_lessons(user.id)
+        lessons_by_user = await get_user_upcoming_lessons(user.id)
     except (LessonError, UserError) as e:
         logging.getLogger(__name__).exception(e)
         await update.callback_query.edit_message_text(str(e))
@@ -199,7 +199,7 @@ async def available_lessons_button(update: Update, context: ContextTypes.DEFAULT
         return StartHandlerStates.START
     try:
         user = await get_user(user_tg_id)
-        lessons = await get_available_lessons_from_db(user.id)
+        lessons = await get_available_upcoming_lessons_from_db(user.id)
     except (LessonError, UserError) as e:
         logging.getLogger(__name__).exception(e)
         await update.callback_query.edit_message_text(str(e))

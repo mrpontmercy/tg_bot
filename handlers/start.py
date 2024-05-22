@@ -28,7 +28,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             kb = KB_START_COMMAND
     else:
-        print(LECTURER_FILTER.check_update(update))
         if ADMIN_FILTER.check_update(update) and LECTURER_FILTER.check_update(update):
             kb = KB_START_COMMAND_REGISTERED_LECTURER_ADMIN
         elif ADMIN_FILTER.check_update(update):

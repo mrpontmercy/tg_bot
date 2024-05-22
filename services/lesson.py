@@ -139,9 +139,9 @@ def get_lessons_from_file(file_name: Path) -> list[Lesson] | None:
     return lessons
 
 
-async def get_available_lessons_from_db(user_id: int):
+async def get_available_upcoming_lessons_from_db(user_id: int):
     sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
-            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id WHERE ul.lesson_id is NULL"""
+            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id WHERE ul.lesson_id is NULL AND strftime("%Y-%m-%d %H:%M", "now") < l.time_start"""
 
     rows = await fetch_all(sql, params={"user_id": user_id})
     if not rows:
@@ -153,7 +153,7 @@ async def get_available_lessons_from_db(user_id: int):
     return lessons
 
 
-async def get_user_lessons(user_id) -> list[Lesson]:
+async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
     lessons = await _fetch_all_user_lessons(user_id)
 
     if lessons is None or not lessons:
@@ -167,7 +167,7 @@ async def get_user_lessons(user_id) -> list[Lesson]:
 
 async def _fetch_all_user_lessons(user_id: str | int):
     sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
-            join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id"""  # не * а конкретные поля
+            join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now') < l.time_start"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
 
 
