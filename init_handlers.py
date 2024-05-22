@@ -31,10 +31,8 @@ from handlers.confirmation import (
 )
 from handlers.lesson import (
     available_lessons_button,
-    cancel_lesson,
     show_lessons,
     show_my_lessons,
-    subscribe_to_lesson,
     user_lessons_button,
 )
 from handlers.register import REGISTER, register_command, register_user
@@ -42,11 +40,9 @@ from handlers.start import start_command
 from services.filters import (
     ADMIN_AND_PRIVATE_FILTER,
     ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
-    ADMIN_FILTER,
-    LECTURER_FILTER,
 )
 from services.filters import PRIVATE_CHAT_FILTER
-from services.states import AdminStates, ConfirmStates, StartHandlerStates
+from services.states import AdminStates, StartHandlerStates
 
 CQH_CONFIRM_SUBSCRIBE = CallbackQueryHandler(
     confirmation_action_handler,
@@ -59,10 +55,6 @@ CQH_CONFIRM_SUBCRIBE_YES = CallbackQueryHandler(
 
 CQH_CONFIRM_SUBCRIBE_CANCEL = CallbackQueryHandler(
     cancel_action_button, pattern=".*_cancel_action$"
-)
-
-CQH_SUBSCRIBE_LESSON = CallbackQueryHandler(
-    subscribe_to_lesson, pattern="^" + config.CALLBACK_LESSON_PREFIX + "subscribe$"
 )
 
 CQH_LESSON_BUTTONS = CallbackQueryHandler(
@@ -185,10 +177,12 @@ START_HANDLER = ConversationHandler(
     states={
         StartHandlerStates.START: [
             MessageHandler(
-                filters.Regex("^Доступные занятия$") & PRIVATE_CHAT_FILTER, show_lessons
+                filters.Regex("^Доступные занятия$") & PRIVATE_CHAT_FILTER,
+                show_lessons,
             ),
             MessageHandler(
-                filters.Regex("^Мои занятия$") & PRIVATE_CHAT_FILTER, show_my_lessons
+                filters.Regex("^Мои занятия$") & PRIVATE_CHAT_FILTER,
+                show_my_lessons,
             ),
             MessageHandler(
                 filters.Regex("^Активировать ключ$") & PRIVATE_CHAT_FILTER,

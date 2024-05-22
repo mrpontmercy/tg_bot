@@ -20,6 +20,7 @@ from services.kb import (
 )
 from services.lesson import (
     calculate_timedelta,
+    get_lecturer_lessons,
     get_user_subscription,
     get_available_upcoming_lessons_from_db,
     get_user_upcoming_lessons,

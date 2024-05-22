@@ -153,8 +153,23 @@ async def get_available_upcoming_lessons_from_db(user_id: int):
     return lessons
 
 
+async def get_lecturer_lessons(lecturer_id: int):
+    sql = select_where("lesson", "*", "lecturer_id=:lecturer_id")
+    rows = await fetch_all(sql, {"lecturer_id": lecturer_id})
+
+    if not rows:
+        raise LessonError("Вы не ведете ни одного занятия!")
+
+    lessons = []
+
+    for row in rows:
+        lessons.append(Lesson(**row))
+
+    return lessons
+
+
 async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
-    lessons = await _fetch_all_user_lessons(user_id)
+    lessons = await _fetch_all_user_upcoming_lessons(user_id)
 
     if lessons is None or not lessons:
         raise LessonError("Не удалось найти занятия пользователя!")
@@ -165,7 +180,7 @@ async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
     return res
 
 
-async def _fetch_all_user_lessons(user_id: str | int):
+async def _fetch_all_user_upcoming_lessons(user_id: str | int):
     sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
             join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now') < l.time_start"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
