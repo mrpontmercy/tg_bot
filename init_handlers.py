@@ -19,6 +19,7 @@ from handlers.admin import (
     list_available_subs,
     make_lecturer,
     make_new_subscription,
+    return_to_start_command,
     subs_button,
     update_command,
 )
@@ -110,6 +111,73 @@ REGISTER_USER_HANDLER = ConversationHandler(
     },
 )
 
+ADMIN_HANDLER_2 = ConversationHandler(
+    [
+        MessageHandler(
+            filters.Regex("^Админ панель$") & ADMIN_AND_PRIVATE_FILTER,
+            admin_command,
+        ),
+    ],
+    {
+        AdminStates.CHOOSING: [
+            MessageHandler(
+                filters.Regex("^Создать ключ$") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                generate_sub,
+            ),
+            MessageHandler(
+                filters.Regex("^Доступные ключи$")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                list_available_subs,
+            ),
+            MessageHandler(
+                filters.Regex("^Обновить уроки$")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                update_command,
+            ),
+            MessageHandler(
+                filters.Regex("^Добавить преподователя$")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                enter_lecturer_phone_number,
+            ),
+            MessageHandler(
+                filters.Regex("^Назад$") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                return_to_start_command,
+            ),
+        ],
+        AdminStates.GET_CSV_FILE: [
+            MessageHandler(
+                filters.Document.MimeType("text/csv")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                insert_into_lesson,
+            ),
+        ],
+        AdminStates.LECTURER_PHONE: [
+            MessageHandler(
+                filters.TEXT
+                & filters.Regex("^(?!Назад$)(?!Отменить$)(?!\/cancel$).+")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                make_lecturer,
+            )
+        ],
+        AdminStates.NUM_OF_CLASSES: [
+            MessageHandler(
+                filters.TEXT
+                & filters.Regex("^(?!Назад$)(?!Отменить$)(?!\/cancel$).+")
+                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                make_new_subscription,
+            )
+        ],
+    },
+    [
+        MessageHandler(
+            filters.Regex("^Назад$") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+            return_to_start_command,
+        ),
+    ],
+    map_to_parent={ConversationHandler.END, StartHandlerStates.START},
+)
+
+
 START_HANDLER = ConversationHandler(
     entry_points=[
         CommandHandler(["start"], start_command, filters=PRIVATE_CHAT_FILTER),
@@ -128,10 +196,6 @@ START_HANDLER = ConversationHandler(
             ),
             MessageHandler(
                 filters.Regex("^Оставшееся количество занятий$") & PRIVATE_CHAT_FILTER,
-                show_number_of_remaining_classes_on_subscription,
-            ),
-            MessageHandler(
-                filters.Regex("^Админ панель$") & ADMIN_AND_PRIVATE_FILTER,
                 show_number_of_remaining_classes_on_subscription,
             ),
             REGISTER_USER_HANDLER,

@@ -7,7 +7,11 @@ from telegram.ext import filters
 from services.db import get_lecturers, get_user
 from services.exceptions import UserError
 
-admins = list(map(int, os.getenv("ADMINS").split(" ")))
+ADMINS = os.getenv("ADMINS")
+if ADMINS is None or ADMINS == "":
+    admins = []
+else:
+    admins = list(map(int, os.getenv("ADMINS").split(" ")))
 
 ADMIN_FILTER = filters.User(admins)
 PRIVATE_CHAT_FILTER = filters.ChatType.PRIVATE

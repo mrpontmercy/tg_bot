@@ -12,7 +12,7 @@ KB_START_COMMAND = ReplyKeyboardMarkup(
         ["Доступные занятия", "Мои занятия"],
         ["Отменить"],
     ],
-    one_time_keyboard=True,
+    one_time_keyboard=False,
     input_field_placeholder="Что вы хотите сделать?",
 )
 
@@ -22,7 +22,7 @@ KB_START_COMMAND_ADMIN = ReplyKeyboardMarkup(
         ["Доступные занятия", "Мои занятия", "Админ панель"],
         ["Отменить"],
     ],
-    one_time_keyboard=True,
+    one_time_keyboard=False,
     input_field_placeholder="Что вы хотите сделать?",
 )
 
@@ -36,12 +36,31 @@ KB_START_COMMAND_REGISTERED = ReplyKeyboardMarkup(
     input_field_placeholder="Что вы хотите сделать?",
 )
 
-KB_START_COMMAND_ANother = ReplyKeyboardMarkup(
+KB_START_COMMAND_REGISTERED_ADMIN = ReplyKeyboardMarkup(
+    [
+        ["Активировать ключ", "Оставшееся количество занятий"],
+        ["Доступные занятия", "Мои занятия", "Админ панель"],
+        ["Отменить"],
+    ],
+    one_time_keyboard=False,
+    input_field_placeholder="Что вы хотите сделать?",
+)
+
+KB_START_COMMAND_REGISTERED_LECTURER = ReplyKeyboardMarkup(
     [
         ["Мои занятия"],
         ["Отменить"],
     ],
-    one_time_keyboard=True,
+    one_time_keyboard=False,
+    input_field_placeholder="Что вы хотите сделать?",
+)
+
+KB_START_COMMAND_REGISTERED_LECTURER_ADMIN = ReplyKeyboardMarkup(
+    [
+        ["Мои занятия", "Админ панель"],
+        ["Отменить"],
+    ],
+    one_time_keyboard=False,
     input_field_placeholder="Что вы хотите сделать?",
 )
 
@@ -50,7 +69,7 @@ KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
         ["Создать ключ", "Доступные ключи"],
         ["Обновить уроки", "Добавить преподователя"],
     ],
-    one_time_keyboard=True,
+    one_time_keyboard=False,
 )
 
 KB_ADMIN_COMMAND_2 = ReplyKeyboardMarkup(

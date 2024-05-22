@@ -10,7 +10,7 @@ from config import (
     CALLBACK_DATA_DELETESUBSCRIPTION,
     CALLBACK_DATA_SUBSCRIBE,
 )
-from handlers.admin import remove_subscription
+from handlers.admin import list_available_subs, remove_subscription
 from handlers.lesson import (
     cancel_lesson,
     show_lessons,
@@ -44,7 +44,7 @@ async def confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == CALLBACK_DATA_DELETESUBSCRIPTION:
         try:
             await remove_subscription(update, context)
-            await query.edit_message_text("Абонемент успешно удален!")
+            await list_available_subs(update, context)
         except sqlite3.Error as e:
             logging.getLogger(__name__).exception(e)
             return await query.edit_message_text("Не удалось удалить абонемент!")
@@ -59,5 +59,7 @@ async def cancel_action_button(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_lessons(update, context)
     elif action == CALLBACK_DATA_CANCEL_LESSON:
         await show_my_lessons(update, context)
+    elif action == CALLBACK_DATA_DELETESUBSCRIPTION:
+        await list_available_subs(update, context)
 
     await query.edit_message_text("Действие отменено")

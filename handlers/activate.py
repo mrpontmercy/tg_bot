@@ -24,11 +24,12 @@ async def activate_key_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    user_tg_id = update.effective_user.id
     try:
         user = await get_user(update.effective_user.id)
     except UserError as e:
         logger.exception(e)
-        await send_error_message(update, err=str(e))
+        await send_error_message(user_tg_id, context, err=str(e))
         return
 
     await update.message.reply_text("Отправьте ключ абонимента!")
@@ -38,18 +39,18 @@ async def activate_key_command(
 
 async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mess_args = update.message.text.split(" ")
+    user_tg_id = context.user_data.get("curr_user_tg_id")
 
     try:
         args = validate_args(mess_args)
     except InputMessageError as e:
         logger.exception(e)
-        await send_error_message(update, err=str(e))
+        await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerStates.ACTIVATE_KEY
 
     sub_key = args[0]
-    user_tg_id = context.user_data.get("curr_user_tg_id")
     if user_tg_id is None:
-        await send_error_message(update, err=str(e))
+        await send_error_message(user_tg_id, context, err=str(e))
         return ConversationHandler.END
     del context.user_data["curr_user_tg_id"]
     try:
@@ -57,11 +58,11 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         final_message = await activate_key(sub_key, user)
     except (InvalidSubKey, UserError) as e:
         logger.exception(e)
-        await send_error_message(update, err=str(e))
+        await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerStates.ACTIVATE_KEY
     except sqlite3.OperationalError as e:
         logger.exception(e)
-        await send_error_message(update, err=str(e))
+        await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerStates.START
 
     await update.effective_message.reply_text(final_message)
@@ -77,7 +78,7 @@ async def show_number_of_remaining_classes_on_subscription(
         subscription = await get_user_subscription(user_db_id=user.id)
     except SubscriptionError as e:
         logger.exception(e)
-        await send_error_message(update, err=str(e))
+        await send_error_message(update.message.from_user.id, context, err=str(e))
         return StartHandlerStates.START
     await context.bot.send_message(
         user.telegram_id,

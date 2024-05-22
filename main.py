@@ -8,6 +8,7 @@ import config
 from db import close_db
 from init_handlers import (
     ADMIN_HANDLER,
+    ADMIN_HANDLER_2,
     CQH_AVAILABLE_SUBS_BUTTONS,
     CQH_CONFIRM_SUBCRIBE_CANCEL,
     CQH_CONFIRM_SUBCRIBE_YES,
@@ -33,7 +34,7 @@ def main():
 
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
-    app.add_handler(ADMIN_HANDLER)
+    app.add_handler(ADMIN_HANDLER_2)
     app.add_handler(CQH_AVAILABLE_SUBS_BUTTONS)
     app.add_handler(START_HANDLER)
     app.add_handler(REGISTER_USER_HANDLER)

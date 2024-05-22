@@ -1,12 +1,16 @@
 from telegram import Update
 from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
 
 from services.templates import render_template
 
 
 async def send_error_message(
-    update: Update, data: dict | None = None, err: str | None = None
+    user_tg_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
+    data: dict | None = None,
+    err: str | None = None,
 ):
-    await update.message.reply_text(
-        render_template("error.jinja", err=err), parse_mode=ParseMode.HTML
+    await context.bot.send_message(
+        user_tg_id, render_template("error.jinja", err=err), parse_mode=ParseMode.HTML
     )

@@ -105,7 +105,7 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
-    context.user_data["kb"] = kb
+
     return StartHandlerStates.START
 
 
@@ -215,7 +215,6 @@ async def _lessons_button(
     current_index = int(query.data[len(pattern) :])
     context.user_data["curr_lesson"] = lessons[current_index]
     kb = kb_func(current_index, len(lessons), pattern)
-    context.user_data["kb"] = kb
     await query.edit_message_text(
         render_template("lesson.jinja", lessons[current_index].to_dict_lesson_info()),
         reply_markup=kb,
@@ -270,7 +269,5 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return ConversationHandler.END
 
-    await query.edit_message_text(
-        "Вы успешно записались на занятие!", reply_markup=None
-    )
+    await query.edit_message_text("Вы успешно записались на занятие!")
     return ConversationHandler.END
