@@ -1,7 +1,6 @@
 import logging
 import sqlite3
 from telegram import Update
-from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 from services.activate import activate_key, validate_args
 from services.exceptions import (
@@ -11,11 +10,9 @@ from services.exceptions import (
     UserError,
 )
 from services.db import get_user
-from services.kb import KB_START_COMMAND_REGISTERED
 from services.lesson import get_user_subscription
 from services.reply_text import send_error_message
 from services.states import StartHandlerStates
-from services.templates import render_template
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +80,5 @@ async def show_number_of_remaining_classes_on_subscription(
     await context.bot.send_message(
         user.telegram_id,
         f"У вас осталось {subscription.num_of_classes} занятий на абонименте",
-        reply_markup=KB_START_COMMAND_REGISTERED,
     )
     return StartHandlerStates.START

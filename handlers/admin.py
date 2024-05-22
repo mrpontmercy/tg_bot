@@ -4,7 +4,7 @@ import random
 import sqlite3
 import string
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
 
@@ -18,15 +18,11 @@ from services.admin import (
     validate_num_of_classes,
     validate_phone_number,
 )
-from services.db import get_user, get_user_by_phone_number
+from services.db import get_user_by_phone_number
 from services.exceptions import InputMessageError, SubscriptionError, UserError
 from services.kb import (
-    KB_ADMIN_COMMAND,
     KB_ADMIN_COMMAND_2,
-    KB_START_COMMAND_ADMIN,
-    _get_flip_keyboard,
     get_flip_keyboard,
-    get_flip_with_cancel_INLINEKB,
 )
 from services.lesson import get_lessons_from_file
 from services.reply_text import send_error_message

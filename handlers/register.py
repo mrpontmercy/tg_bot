@@ -4,8 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from all_strings import GREETINGS
-from handlers.start import start_command
-from services.kb import KB_START_COMMAND_REGISTERED
+from handlers.start import get_current_keyboard
 from services.register import (
     insert_user,
     validate_message,
@@ -44,11 +43,9 @@ async def register_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Произошла ошибка.\nНачните регистрацию заново",
         )
         return REGISTER
-
+    kb = await get_current_keyboard(update)
     await context.bot.send_message(
-        user.id,
-        "Вы успешно зарегестрировались!",
+        user.id, "Вы успешно зарегестрировались!", reply_markup=kb
     )
-    await start_command(update, context)
 
     return ConversationHandler.END

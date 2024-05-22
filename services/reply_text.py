@@ -12,5 +12,7 @@ async def send_error_message(
     err: str | None = None,
 ):
     await context.bot.send_message(
-        user_tg_id, render_template("error.jinja", err=err), parse_mode=ParseMode.HTML
+        user_tg_id,
+        render_template("error.jinja", err=err, data=data),
+        parse_mode=ParseMode.HTML,
     )

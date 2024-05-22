@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 import logging
 import sqlite3
 from typing import Callable
@@ -10,19 +9,17 @@ from telegram.ext import ContextTypes, ConversationHandler
 from config import (
     CALLBACK_LESSON_PREFIX,
     CALLBACK_USER_LESSON_PREFIX,
-    DATETIME_FORMAT,
 )
 
+from handlers.start import get_current_keyboard
 from services.db import get_user
 from services.exceptions import LessonError, SubscriptionError, UserError
 from services.kb import (
-    KB_START_COMMAND_REGISTERED,
     get_flip_with_cancel_INLINEKB,
     get_lesson_INLINEKB,
 )
 from services.lesson import (
     calculate_timedelta,
-    check_user_in_db,
     get_user_subscription,
     get_available_upcoming_lessons_from_db,
     get_user_upcoming_lessons,
@@ -42,8 +39,6 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     узнать есть ли пользователь в бд
     узнать есть ли у него уроки
     """
-
-    # TODO не отображать уроки, которые уже прошли
     user_tg_id = update.effective_user.id
 
     try:
@@ -62,9 +57,8 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         lessons_by_user = await get_user_upcoming_lessons(user.id)
     except LessonError as e:
-        await context.bot.send_message(
-            user_tg_id, str(e), reply_markup=KB_START_COMMAND_REGISTERED
-        )
+        kb = await get_current_keyboard(update)
+        await context.bot.send_message(user_tg_id, str(e), reply_markup=kb)
         return StartHandlerStates.START
     first_lesson: Lesson = lessons_by_user[0]
     context.user_data["curr_lesson"] = first_lesson
@@ -104,9 +98,8 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         lessons = await get_available_upcoming_lessons_from_db(user.id)
     except LessonError as e:
-        await context.bot.send_message(
-            user_tg_id, str(e), reply_markup=KB_START_COMMAND_REGISTERED
-        )
+        kb = await get_current_keyboard(update)
+        await context.bot.send_message(user_tg_id, str(e), reply_markup=kb)
         return StartHandlerStates.START
 
     context.user_data["curr_lesson"] = lessons[0]

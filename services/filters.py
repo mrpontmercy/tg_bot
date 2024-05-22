@@ -26,7 +26,7 @@ def get_lecturers_ids():
     if lecturers is None:
         return []
 
-    return [lecturer.id for lecturer in lecturers]
+    return [lecturer.telegram_id for lecturer in lecturers]
 
 
 lecturer_ids = get_lecturers_ids()
@@ -35,3 +35,11 @@ if lecturer_ids:
     LECTURER_FILTER = filters.User(lecturer_ids)
 
 LECTURER_FILTER = filters.User()
+
+
+def is_admin(user_id: int) -> bool:
+    return user_id in admins
+
+
+def is_lecturer(user_id: int) -> bool:
+    return user_id in lecturer_ids
