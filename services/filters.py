@@ -34,4 +34,4 @@ lecturer_ids = get_lecturers_ids()
 if lecturer_ids:
     LECTURER_FILTER = filters.User(lecturer_ids)
 
-LECTURER_FILTER = filters.User(allow_empty=True)
+LECTURER_FILTER = filters.User()

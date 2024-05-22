@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from db import get_db
 from services.db import (
     fetch_one_subscription_where_cond,
-    fetch_one_user_by_tg_id,
+    fetch_one_user,
     execute_delete,
     execute_update,
 )
@@ -32,7 +32,9 @@ async def activate_key_command(
     if args is not None and len(args) != 0:
         raise InputMessageError("Введен неверный ключ!")
 
-    user = await fetch_one_user_by_tg_id({"telegram_id": telegram_id})
+    user = await fetch_one_user(
+        "telegram_id=:telegram_id", {"telegram_id": telegram_id}
+    )
 
     if user is None:
         raise UserError("Пользователь не зарегестрирован!")

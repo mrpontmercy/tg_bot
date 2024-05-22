@@ -10,7 +10,7 @@ from services.db import (
     execute_insert,
     execute_update,
     fetch_one_subscription_where_cond,
-    fetch_one_user_by_tg_id,
+    fetch_one_user,
     select_where,
 )
 from services.exceptions import (
@@ -52,7 +52,9 @@ async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
 
 
 async def check_user_in_db(telegram_id: int):
-    curr_user_db = await fetch_one_user_by_tg_id({"telegram_id": telegram_id})
+    curr_user_db = await fetch_one_user(
+        "telegram_id=:telegram_id", {"telegram_id": telegram_id}
+    )
 
     return curr_user_db
 

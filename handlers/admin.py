@@ -105,7 +105,7 @@ async def insert_into_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE)
     for lesson in lessons:
         params = lesson.to_dict()
         del params["id"]
-        # TODO добавить lecturer_id
+        # TODO Обработать ошибку IntegretyError (попытка вставить неправильный Foreign Key)
         await execute(
             """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer, :lecturer_id)""",
             params,

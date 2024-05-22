@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 async def get_db():
     if not getattr(get_db, "db", None):
         db = await aiosqlite.connect(config.SQLITE_DB_FILE)
+        await db.execute(
+            "PRAGMA foreign_keys = on"
+        )  # Чтобы работали ограничения на Foreign Key
         get_db.db = db
 
     return get_db.db

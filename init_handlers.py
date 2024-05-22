@@ -154,7 +154,7 @@ ADMIN_HANDLER_2 = ConversationHandler(
         AdminStates.LECTURER_PHONE: [
             MessageHandler(
                 filters.TEXT
-                & filters.Regex("^(?!Назад$)(?!Отменить$)(?!\/cancel$).+")
+                & filters.Regex("^(?!Назад$).+")
                 & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 make_lecturer,
             )
@@ -162,7 +162,7 @@ ADMIN_HANDLER_2 = ConversationHandler(
         AdminStates.NUM_OF_CLASSES: [
             MessageHandler(
                 filters.TEXT
-                & filters.Regex("^(?!Назад$)(?!Отменить$)(?!\/cancel$).+")
+                & filters.Regex("^(?!Назад$).+")
                 & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 make_new_subscription,
             )
@@ -199,6 +199,7 @@ START_HANDLER = ConversationHandler(
                 show_number_of_remaining_classes_on_subscription,
             ),
             REGISTER_USER_HANDLER,
+            ADMIN_HANDLER_2,
         ],
         StartHandlerStates.ACTIVATE_KEY: [
             MessageHandler(

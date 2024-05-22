@@ -29,6 +29,7 @@ from services.lesson import (
     process_sub_to_lesson,
     update_info_after_cancel_lesson,
 )
+from services.reply_text import send_error_message
 from services.states import StartHandlerStates
 from services.templates import render_template
 from services.utils import Lesson
@@ -42,9 +43,15 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     узнать есть ли у него уроки
     """
 
+    # TODO не отображать уроки, которые уже прошли
     user_tg_id = update.effective_user.id
 
-    user = await get_user(user_tg_id)
+    try:
+        user = await get_user(user_tg_id)
+    except UserError as e:
+        logging.getLogger(__name__).exception(e)
+        await send_error_message(user_tg_id, context, err=str(e))
+        return StartHandlerStates.START
 
     if user is None:
         await update.message.reply_text("Пользователь не зарегестрирован!")
@@ -81,7 +88,12 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_tg_id = update.effective_user.id
 
-    user = await get_user(user_tg_id)
+    try:
+        user = await get_user(user_tg_id)
+    except UserError as e:
+        logging.getLogger(__name__).exception(e)
+        await send_error_message(user_tg_id, context, err=str(e))
+        return StartHandlerStates.START
 
     if user is None:
         await update.message.reply_text("Пользователь не зарегестрирован!")

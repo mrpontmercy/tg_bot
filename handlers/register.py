@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from all_strings import GREETINGS
+from handlers.start import start_command
 from services.kb import KB_START_COMMAND_REGISTERED
 from services.register import (
     insert_user,
@@ -47,7 +48,7 @@ async def register_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         user.id,
         "Вы успешно зарегестрировались!",
-        reply_markup=KB_START_COMMAND_REGISTERED,
     )
+    await start_command(update, context)
 
     return ConversationHandler.END
