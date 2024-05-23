@@ -14,6 +14,8 @@ from handlers.start import start_command
 from services.admin import (
     delete_subscription,
     get_all_subs,
+    insert_lessons_into_db,
+    save_file,
     update_user_to_lecturer,
     validate_num_of_classes,
     validate_phone_number,
@@ -73,7 +75,8 @@ async def make_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return AdminStates.CHOOSING
 
     await update.message.reply_text(
-        f"Пользователь с номером {phone_number} успешно обновлен до `Преподователь`"
+        f"Пользователь с номером {phone_number} успешно обновлен до `Преподователь`",
+        reply_markup=KB_ADMIN_COMMAND_2,
     )
     return AdminStates.CHOOSING
 
@@ -87,29 +90,29 @@ async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def insert_into_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    rec_file = update.message.document
-    file = await context.bot.get_file(rec_file)
-    saved_file_path = LESSONS_DIR / rec_file.file_name
-    await file.download_to_drive(saved_file_path)
+    saved_file_path = await save_file(update.message.document, context)
+
     lessons = get_lessons_from_file(saved_file_path)
     if lessons is None:
-        await update.effective_user.send_message(
-            "Неверно заполнен файл. Попробуй с другим файлом."
+        await send_error_message(
+            update.effective_user.id,
+            context,
+            err="Неверно заполнен файл. Попробуй с другим файлом.",
         )
         os.remove(saved_file_path)
         return AdminStates.GET_CSV_FILE
-    for lesson in lessons:
-        params = lesson.to_dict()
-        del params["id"]
-        # TODO Обработать ошибку IntegretyError (попытка вставить неправильный Foreign Key)
-        await execute(
-            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer, :lecturer_id)""",
-            params,
+    errors_after_inserting_lessons = await insert_lessons_into_db(lessons)
+
+    if not errors_after_inserting_lessons:
+        await context.bot.send_message(
+            update.message.from_user.id, "\n".join(errors_after_inserting_lessons)
         )
+
     os.remove(saved_file_path)
     await context.bot.send_message(
         chat_id=update.effective_message.chat_id,
         text="Уроки успешно добавлены в общий список",
+        reply_markup=KB_ADMIN_COMMAND_2,
     )
     return AdminStates.CHOOSING
 

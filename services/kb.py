@@ -2,7 +2,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMa
 
 from config import (
     CALLBACK_DATA_CANCEL_LESSON,
+    CALLBACK_DATA_DELETE_LESSON,
     CALLBACK_DATA_DELETESUBSCRIPTION,
+    CALLBACK_DATA_EDIT_LESSON,
     CALLBACK_DATA_SUBSCRIBE,
 )
 
@@ -48,7 +50,7 @@ KB_START_COMMAND_REGISTERED_ADMIN = ReplyKeyboardMarkup(
 
 KB_START_COMMAND_REGISTERED_LECTURER = ReplyKeyboardMarkup(
     [
-        ["Мои занятия"],
+        ["Ваши занятия", "Добавить занятие"],
         ["Отменить"],
     ],
     one_time_keyboard=False,
@@ -57,7 +59,7 @@ KB_START_COMMAND_REGISTERED_LECTURER = ReplyKeyboardMarkup(
 
 KB_START_COMMAND_REGISTERED_LECTURER_ADMIN = ReplyKeyboardMarkup(
     [
-        ["Мои занятия", "Админ панель"],
+        ["Ваши занятия", "Админ панель"],
         ["Отменить"],
     ],
     one_time_keyboard=False,
@@ -96,6 +98,20 @@ def get_confirmation_keyboard(prefix: str) -> InlineKeyboardMarkup:
         ]
     )
     return kb
+
+
+def get_flipKB_with_edit(current_lesson_index, number_of_lessons, prefix):
+    keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                "Изменить", callback_data=f"{prefix}{CALLBACK_DATA_EDIT_LESSON}"
+            ),
+            InlineKeyboardButton(
+                "Удалить", callback_data=f"{prefix}{CALLBACK_DATA_DELETE_LESSON}"
+            ),
+        ]
+    )
 
 
 def get_flip_with_cancel_INLINEKB(

@@ -31,6 +31,8 @@ from handlers.confirmation import (
 )
 from handlers.lesson import (
     available_lessons_button,
+    lecturer_lessons_button,
+    show_lecturer_lessons,
     show_lessons,
     show_my_lessons,
     user_lessons_button,
@@ -63,20 +65,15 @@ CQH_LESSON_BUTTONS = CallbackQueryHandler(
 CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
     user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PREFIX + "\d+"
 )
+
+CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
+    lecturer_lessons_button,
+    pattern="^" + config.CALLBACK_LECTURER_LESSON_PREFIX + "\d+",
+)
+
 CQH_AVAILABLE_SUBS_BUTTONS = CallbackQueryHandler(
     subs_button, pattern="^" + config.CALLBACK_SUB_PREFIX + "\d+"
 )
-
-# CONFIRM_SUBSCRIPTION = ConversationHandler(
-#     CQH_CONFIRM_SUBSCRIBE,
-#     states={
-#         ConfirmStates.CONFIRMATION: [
-#             CQH_CONFIRM_SUBCRIBE_YES,
-#         ],
-#     },
-#     fallbacks=[CQH_CONFIRM_SUBCRIBE_CANCEL],
-#     map_to_parent={ConversationHandler.END: StartHandlerStates.START},
-# )
 
 REGISTER_USER_HANDLER = ConversationHandler(
     [
@@ -191,6 +188,10 @@ START_HANDLER = ConversationHandler(
             MessageHandler(
                 filters.Regex("^Оставшееся количество занятий$") & PRIVATE_CHAT_FILTER,
                 show_number_of_remaining_classes_on_subscription,
+            ),
+            MessageHandler(
+                filters.Regex("^Ваши занятия$") & PRIVATE_CHAT_FILTER,
+                show_lecturer_lessons,
             ),
             REGISTER_USER_HANDLER,
             ADMIN_HANDLER_2,

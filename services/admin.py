@@ -1,8 +1,40 @@
 import re
-from db import fetch_all
-from services.db import execute_delete, execute_update
-from services.exceptions import InputMessageError, SubscriptionError
-from services.utils import PHONE_NUMBER_PATTERN, Subscription
+
+from telegram import Document
+from telegram.ext import ContextTypes
+from config import LESSONS_DIR
+from db import execute, fetch_all
+from services.db import execute_delete, execute_update, get_user_by_phone_number
+from services.exceptions import InputMessageError, SubscriptionError, UserError
+from services.utils import PHONE_NUMBER_PATTERN, Subscription, TransientLesson
+
+
+async def save_file(recived_file: Document, context: ContextTypes.DEFAULT_TYPE):
+    file = await context.bot.get_file(recived_file)
+    saved_file_path = LESSONS_DIR / recived_file.file_name
+    await file.download_to_drive(saved_file_path)
+    return saved_file_path
+
+
+async def insert_lessons_into_db(lessons: list[TransientLesson]):
+    res_err = []
+    for lesson in lessons:
+        try:
+            lecturer = await get_user_by_phone_number(lesson.lecturer_phone)
+        except UserError:
+            res_err.append(
+                f"Не удалось записать урок {lesson.title} {lesson.time_start}. Нет преподавателя с таким номером телефона!"
+            )
+            continue
+        params = lesson.to_dict()
+        del params["lecturer_phone"]
+        params["lecturer"] = lecturer.f_name
+        params["lecturer_id"] = lecturer.id
+        await execute(
+            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer, :lecturer_id)""",
+            params,
+        )
+    return res_err
 
 
 async def delete_subscription(sub_id: int):

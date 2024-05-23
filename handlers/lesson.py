@@ -7,15 +7,17 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
 from config import (
+    CALLBACK_LECTURER_LESSON_PREFIX,
     CALLBACK_LESSON_PREFIX,
     CALLBACK_USER_LESSON_PREFIX,
 )
 
 from handlers.start import get_current_keyboard
-from services.db import get_user
+from services.db import get_lecturer_upcomming_lessons, get_user
 from services.exceptions import LessonError, SubscriptionError, UserError
 from services.kb import (
     get_flip_with_cancel_INLINEKB,
+    get_flipKB_with_edit,
     get_lesson_INLINEKB,
 )
 from services.lesson import (
@@ -115,6 +117,32 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return StartHandlerStates.START
 
 
+async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_tg_id = update.effective_user.id
+    try:
+        lecturer = await get_user(telegram_id=user_tg_id)
+    except UserError as e:
+        await send_error_message(user_tg_id, context, err=str(e))
+        return StartHandlerStates.START
+
+    lessons = await get_lecturer_upcomming_lessons(update.effective_user.id)
+    if lessons is None:
+        await send_error_message(user_tg_id, context, err="У вас ещё нет занятий.")
+        return StartHandlerStates.START
+
+    kb = get_flipKB_with_edit(
+        0,
+        len(lessons),
+        CALLBACK_LECTURER_LESSON_PREFIX,
+    )
+    await context.bot.send_message(
+        user_tg_id,
+        text=render_template("lesson.jinja", data=lessons[0].to_dict_lesson_info()),
+        reply_markup=kb,
+        parse_mode=ParseMode.HTML,
+    )
+
+
 async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     отменять не поздее чем за 2 часа до занятия
@@ -154,6 +182,33 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return StartHandlerStates.START
     await update.callback_query.edit_message_text("Занятие успешно отменено!")
+    return StartHandlerStates.START
+
+
+async def lecturer_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_tg_id = context.user_data.get("curr_user_tg_id")
+    if user_tg_id is None:
+        await update.callback_query.edit_message_text(
+            "Вы не записаны ни на одно занятие!"
+        )
+        return StartHandlerStates.START
+
+    try:
+        lecturer = await get_user(user_tg_id)
+        lessons_by_user = await get_lecturer_lessons(lecturer.id)
+    except (LessonError, UserError) as e:
+        logging.getLogger(__name__).exception(e)
+        await send_error_message(user_tg_id, context, err=str(e))
+        return StartHandlerStates.START
+
+    kb_func = get_flipKB_with_edit
+    await _lessons_button(
+        lessons=lessons_by_user,
+        kb_func=kb_func,
+        pattern=CALLBACK_USER_LESSON_PREFIX,
+        update=update,
+        context=context,
+    )
     return StartHandlerStates.START
 
 
@@ -226,6 +281,9 @@ async def _lessons_button(
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
+
+
+async def edit_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE): ...
 
 
 async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):

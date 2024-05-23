@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+import re
 from typing import Any
 
-from services.exceptions import ColumnCSVError
+from services.exceptions import ColumnCSVError, LessonError
 
 
 PHONE_NUMBER_PATTERN = r"^[8][0-9]{10}$"  # Для российских номеров
@@ -60,6 +61,26 @@ class Subscription:
             "sub_key": self.sub_key,
             "num_of_classes": self.num_of_classes,
             "user_id": self.user_id,
+        }
+
+
+@dataclass
+class TransientLesson:
+    title: str
+    time_start: str
+    num_of_seats: str
+    lecturer_phone: str
+
+    def __post_init__(self):
+        if not re.fullmatch(PHONE_NUMBER_PATTERN, self.lecturer_phone):
+            raise ColumnCSVError("Неверно заполнены столбцы!")
+
+    def to_dict(self):
+        return {
+            "title": self.title,
+            "time_start": self.time_start,
+            "num_of_seats": self.num_of_seats,
+            "lecturer_phone": self.lecturer_phone,
         }
 
 

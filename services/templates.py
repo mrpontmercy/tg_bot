@@ -4,7 +4,9 @@ import jinja2
 from config import TEMPLATE_DIR
 
 
-def render_template(template_name: str, data: dict | None = None, err=None):
+def render_template(
+    template_name: str, err: str | None = None, data: dict | None = None
+):
     if data is None:
         data = {}
 

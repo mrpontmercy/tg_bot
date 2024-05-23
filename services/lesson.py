@@ -14,10 +14,11 @@ from services.db import (
     select_where,
 )
 from services.exceptions import (
+    ColumnCSVError,
     LessonError,
     SubscriptionError,
 )
-from services.utils import Lesson, Subscription, UserID
+from services.utils import Lesson, Subscription, TransientLesson, UserID
 
 
 async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
@@ -120,14 +121,15 @@ async def process_sub_to_lesson(lesson: Lesson, sub: Subscription):
     await db.commit()
 
 
-def get_lessons_from_file(file_name: Path) -> list[Lesson] | None:
-    lessons: list[Lesson] = []
+def get_lessons_from_file(file_name: Path) -> list[TransientLesson] | None:
+    lessons: list[TransientLesson] = []
+    fieldnames = ["title", "time_start", "num_of_seats", "lecturer_phone"]
     with open(file_name, "r", encoding="utf-8") as file:
-        reader = csv.DictReader(file)
+        reader = csv.DictReader(file, fieldnames)
         for row in reader:
             try:
-                l = Lesson(**row)
-            except (TypeError, KeyError) as e:
+                l = TransientLesson(**row)
+            except (TypeError, KeyError, ColumnCSVError) as e:
                 logging.getLogger(__name__).exception(e)
                 return None
             except Exception as e:
@@ -141,7 +143,7 @@ def get_lessons_from_file(file_name: Path) -> list[Lesson] | None:
 
 async def get_available_upcoming_lessons_from_db(user_id: int):
     sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
-            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id WHERE ul.lesson_id is NULL AND strftime("%Y-%m-%d %H:%M", "now") < l.time_start"""
+            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id WHERE ul.lesson_id is NULL AND strftime("%Y-%m-%d %H:%M", "now", "4 hours") < l.time_start"""
 
     rows = await fetch_all(sql, params={"user_id": user_id})
     if not rows:
@@ -182,7 +184,7 @@ async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
 
 async def _fetch_all_user_upcoming_lessons(user_id: str | int):
     sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
-            join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now') < l.time_start"""  # не * а конкретные поля
+            join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < l.time_start"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
 
 

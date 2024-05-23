@@ -1,9 +1,7 @@
-from typing import Any, Iterable, Literal
+from typing import Any, Iterable
 from db import execute, fetch_all, fetch_one
-from services.exceptions import SubscriptionError, UserError
-from services.utils import Subscription, UserID
-
-Math_Symbols_TYPE = Literal["=", "<", ">", "<=", ">=" "!=", "<>"]
+from services.exceptions import UserError
+from services.utils import Lesson, Subscription, UserID
 
 
 def update_where_sql(table: str, set_val: str, conditions: str):
@@ -90,6 +88,20 @@ async def get_user_by_id(user_id: int):
         raise UserError("Пользователь не зарегестрирован")
 
     return user
+
+
+async def get_lecturer_upcomming_lessons(lecturer_id: int):
+    sql = select_where(
+        "lesson",
+        "*",
+        "lecturer_id=:lecturer_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < time_start",
+    )
+    rows = await fetch_all(sql, {"lecturer_id": lecturer_id})
+
+    if not rows:
+        return None
+
+    return [Lesson(**row) for row in rows]
 
 
 async def get_user_by_phone_number(phone_number):
