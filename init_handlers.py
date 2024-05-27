@@ -9,6 +9,8 @@ import config
 from handlers.lecturer.lecturer import (
     begin_edit_lesson,
     edit_lesson,
+    edit_time_start_lesson,
+    enter_time_start_lesson,
     enter_title_lesson,
 )
 from handlers.start.subscription import (
@@ -198,12 +200,24 @@ EDIT_LESSON_HANDLER = ConversationHandler(
                 & PRIVATE_CHAT_FILTER
                 & ~filters.Regex("^Назад$"),
                 enter_title_lesson,
-            )
+            ),
+            MessageHandler(
+                filters.Regex("^Изменить дату и время$")
+                & PRIVATE_CHAT_FILTER
+                & ~filters.Regex("^Назад$"),
+                enter_time_start_lesson,
+            ),
         ],
         EditLessonState.EDIT_TITLE: [
             MessageHandler(
                 filters.TEXT & PRIVATE_CHAT_FILTER & ~filters.Regex("^Назад$"),
                 edit_lesson,
+            )
+        ],
+        EditLessonState.EDIT_TIMESTART: [
+            MessageHandler(
+                filters.TEXT & PRIVATE_CHAT_FILTER & ~filters.Regex("^Назад$"),
+                edit_time_start_lesson,
             )
         ],
     },

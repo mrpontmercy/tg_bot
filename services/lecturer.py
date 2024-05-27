@@ -1,3 +1,4 @@
+import re
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
@@ -8,6 +9,9 @@ from services.reply_text import send_error_message
 from services.states import EditLessonState
 from services.templates import render_template
 from services.utils import Lesson
+
+
+datetime_pattern = r"^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01]) (0?[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$"
 
 
 async def process_cancel_lesson_by_lecturer(
@@ -29,7 +33,7 @@ async def process_cancel_lesson_by_lecturer(
         "lecturer": lesson.lecturer,
     }
 
-    await _notify_users_lesson(
+    await _notify_lesson_users(
         "cancel_lesson_message.jinja", data, all_students_of_lesson, context
     )
 
@@ -63,7 +67,7 @@ async def process_delete_lesson_db(params_lesson_id):
     )
 
 
-async def _notify_users_lesson(
+async def _notify_lesson_users(
     template_name: str, data: dict, all_students_of_lesson, context
 ):
     message_to_users = render_template(template_name, data=data, replace=False)
@@ -87,6 +91,12 @@ async def change_lesson_title(
 
     new_title = " ".join(message.split(" "))
 
+    data = {
+        "old_title": curr_lesson.title,
+        "new_title": new_title,
+        "time_start": curr_lesson.time_start,
+    }
+
     await execute_update(
         "lesson",
         "title=:title",
@@ -97,13 +107,56 @@ async def change_lesson_title(
             "lesson_id": curr_lesson.id,
         },
     )
-    data = {
-        "old_title": curr_lesson.title,
-        "new_title": new_title,
-        "time_start": curr_lesson.time_start,
-    }
+
     all_users_of_lesson = await get_all_users_of_lesson({"lesson_id": curr_lesson.id})
-    await _notify_users_lesson(
+    await _notify_lesson_users(
         "edit_title_lesson.jinja", data, all_users_of_lesson, context
     )
     return None
+
+
+async def change_lesson_time_start(
+    user_tg_id, message: str, context: ContextTypes.DEFAULT_TYPE
+):
+    curr_lesson: Lesson | None = context.user_data.get("curr_lesson", None)
+
+    if curr_lesson is None:
+        await send_error_message(user_tg_id, context, err="Не удалось найти урок")
+        return EditLessonState.CHOOSE_OPTION
+
+    validated_time_start = _validate_datetime(message)
+
+    if not validated_time_start:
+        await send_error_message(
+            user_tg_id, context, err="Неверный формат даты и времени!"
+        )
+        return EditLessonState.CHOOSE_OPTION
+
+    data = {
+        "title": curr_lesson.title,
+        "old_time_start": curr_lesson.time_start,
+        "new_time_start": message,
+    }
+
+    await execute_update(
+        "lesson",
+        "time_start=:time_start",
+        "lecturer_id=:lecturer_id AND id=:lesson_id",
+        params={
+            "time_start": message,
+            "lecturer_id": curr_lesson.lecturer_id,
+            "lesson_id": curr_lesson.id,
+        },
+    )
+
+    all_users_of_lesson = await get_all_users_of_lesson({"lesson_id": curr_lesson.id})
+    await _notify_lesson_users(
+        "edit_time_start_lesson.jinja", data, all_users_of_lesson, context
+    )
+    return None
+
+
+def _validate_datetime(message: str):
+    if re.fullmatch(datetime_pattern, message):
+        return True
+    return False

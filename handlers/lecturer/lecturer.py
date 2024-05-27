@@ -6,7 +6,11 @@ from handlers.begin import get_current_keyboard
 from services.db import execute_update, get_user
 from services.exceptions import UserError
 from services.kb import KB_LECTURER_EDIT_LESSON
-from services.lecturer import change_lesson_title, process_cancel_lesson_by_lecturer
+from services.lecturer import (
+    change_lesson_time_start,
+    change_lesson_title,
+    process_cancel_lesson_by_lecturer,
+)
 from services.register import lecturer_required, user_required
 from services.reply_text import send_error_message
 from services.states import EditLessonState, StartHandlerState
@@ -130,5 +134,21 @@ async def edit_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         user_tg_id, "Заголовок урока успешно обновлен", reply_markup=kb
     )
-    # TODO оповестить учеников об изменении заголовка занятия
+    return EditLessonState.CHOOSE_OPTION
+
+
+@user_required(ConversationHandler.END)
+@lecturer_required(ConversationHandler.END)
+async def edit_time_start_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_tg_id = update.effective_user.id
+
+    state = await change_lesson_time_start(user_tg_id, update.message.text, context)
+
+    if state:
+        return state
+
+    kb = await get_current_keyboard(update)
+    await context.bot.send_message(
+        user_tg_id, "Дата занятия успешно обновлена", reply_markup=kb
+    )
     return EditLessonState.CHOOSE_OPTION

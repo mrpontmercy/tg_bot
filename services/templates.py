@@ -18,6 +18,7 @@ def render_template(
     if not replace:
         return template.render(err=err, **data)
     render = template.render(err=err, **data).replace("\n", " ").replace("<br>", "\n")
+    render = "\n".join(line.strip() for line in render.split("\n"))
     return render
 
 
