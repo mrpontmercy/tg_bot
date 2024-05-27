@@ -48,7 +48,7 @@ from services.states import AdminStates, StartHandlerStates
 
 CQH_CONFIRM_SUBSCRIBE = CallbackQueryHandler(
     confirmation_action_handler,
-    pattern=f".*({config.CALLBACK_DATA_SUBSCRIBE}|{config.CALLBACK_DATA_CANCEL_LESSON}|{config.CALLBACK_DATA_DELETESUBSCRIPTION})$",
+    pattern=f".*({config.CALLBACK_DATA_SUBSCRIBE}|{config.CALLBACK_DATA_CANCEL_LESSON}|{config.CALLBACK_DATA_DELETESUBSCRIPTION}|{config.CALLBACK_DATA_DELETE_LESSON})$",
 )
 
 CQH_CONFIRM_SUBCRIBE_YES = CallbackQueryHandler(
@@ -66,7 +66,7 @@ CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
     user_lessons_button, pattern="^" + config.CALLBACK_USER_LESSON_PREFIX + "\d+"
 )
 
-CQH_USER_LESSON_BUTTONS = CallbackQueryHandler(
+CQH_LECTURER_CANCEL_LESSON_BUTTONS = CallbackQueryHandler(
     lecturer_lessons_button,
     pattern="^" + config.CALLBACK_LECTURER_LESSON_PREFIX + "\d+",
 )

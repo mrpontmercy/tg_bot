@@ -13,6 +13,7 @@ from init_handlers import (
     CQH_CONFIRM_SUBCRIBE_CANCEL,
     CQH_CONFIRM_SUBCRIBE_YES,
     CQH_CONFIRM_SUBSCRIBE,
+    CQH_LECTURER_CANCEL_LESSON_BUTTONS,
     CQH_LESSON_BUTTONS,
     CQH_USER_LESSON_BUTTONS,
     REGISTER_USER_HANDLER,
@@ -43,6 +44,7 @@ def main():
     app.add_handler(CQH_CONFIRM_SUBCRIBE_CANCEL)
     app.add_handler(CQH_LESSON_BUTTONS)
     app.add_handler(CQH_USER_LESSON_BUTTONS)
+    app.add_handler(CQH_LECTURER_CANCEL_LESSON_BUTTONS)
 
     app.run_polling(drop_pending_updates=True)
 

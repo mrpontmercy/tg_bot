@@ -70,17 +70,21 @@ KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
     [
         ["Создать ключ", "Доступные ключи"],
         ["Обновить уроки", "Добавить преподователя"],
+        ["Назад"],
     ],
     one_time_keyboard=False,
 )
 
-KB_ADMIN_COMMAND_2 = ReplyKeyboardMarkup(
+KB_LECTURER_EDIT_LESSON = ReplyKeyboardMarkup(
     [
-        ["Создать ключ", "Доступные ключи"],
-        ["Обновить уроки", "Добавить преподователя"],
-        ["Назад"],
-    ],
-    one_time_keyboard=False,
+        [
+            "Изменить заголовок",
+            "Изменить дату и время",
+        ],
+        [
+            "Назад",
+        ],
+    ]
 )
 
 
@@ -112,6 +116,7 @@ def get_flipKB_with_edit(current_lesson_index, number_of_lessons, prefix):
             ),
         ]
     )
+    return InlineKeyboardMarkup(keyboard)
 
 
 def get_flip_with_cancel_INLINEKB(

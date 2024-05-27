@@ -90,12 +90,20 @@ async def get_user_by_id(user_id: int):
     return user
 
 
+async def get_users_by_id(user_ids: list[int]):
+    placeholders = ", ".join("?" * len(user_ids))
+    sql = select_where("user", "*", f"id IN ({placeholders})")
+    rows = await fetch_all(sql, user_ids)
+
+    if not rows:
+        return None
+
+    return [UserID(**row) for row in rows]
+
+
 async def get_lecturer_upcomming_lessons(lecturer_id: int):
-    sql = select_where(
-        "lesson",
-        "*",
-        "lecturer_id=:lecturer_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < time_start",
-    )
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id FROM lesson l
+            join user u on u.id=l.lecturer_id WHERE l.lecturer_id=:lecturer_id AND strftime("%Y-%m-%d %H:%M", "now", "4 hours") < l.time_start"""
     rows = await fetch_all(sql, {"lecturer_id": lecturer_id})
 
     if not rows:

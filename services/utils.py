@@ -2,7 +2,8 @@ from dataclasses import dataclass
 import re
 from typing import Any
 
-from services.exceptions import ColumnCSVError, LessonError
+
+from services.exceptions import ColumnCSVError
 
 
 PHONE_NUMBER_PATTERN = r"^[8][0-9]{10}$"  # Для российских номеров

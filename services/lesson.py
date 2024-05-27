@@ -3,6 +3,9 @@ from datetime import datetime, timedelta, timezone
 import logging
 from pathlib import Path
 
+from telegram import Update
+from telegram.ext import ContextTypes
+
 from config import DATETIME_FORMAT
 from db import fetch_all, fetch_one, get_db
 from services.db import (
@@ -11,12 +14,14 @@ from services.db import (
     execute_update,
     fetch_one_subscription_where_cond,
     fetch_one_user,
+    get_user,
     select_where,
 )
 from services.exceptions import (
     ColumnCSVError,
     LessonError,
     SubscriptionError,
+    UserError,
 )
 from services.utils import Lesson, Subscription, TransientLesson, UserID
 
@@ -50,14 +55,6 @@ async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
     )
 
     await (await get_db()).commit()
-
-
-async def check_user_in_db(telegram_id: int):
-    curr_user_db = await fetch_one_user(
-        "telegram_id=:telegram_id", {"telegram_id": telegram_id}
-    )
-
-    return curr_user_db
 
 
 async def get_user_subscription(user_db_id: int):
@@ -142,12 +139,15 @@ def get_lessons_from_file(file_name: Path) -> list[TransientLesson] | None:
 
 
 async def get_available_upcoming_lessons_from_db(user_id: int):
-    sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
-            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id WHERE ul.lesson_id is NULL AND strftime("%Y-%m-%d %H:%M", "now", "4 hours") < l.time_start"""
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id from lesson l 
+            left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id join user u on u.id=l.lecturer_id 
+            WHERE ul.lesson_id is NULL AND strftime("%Y-%m-%d %H:%M", "now", "4 hours") < l.time_start"""
 
+    # select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer_id, u.f_name from lesson l join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=1 left join user u on u.id=l.lecturer_id WHERE ul.lesson_
+    #     id is not NULL;
     rows = await fetch_all(sql, params={"user_id": user_id})
     if not rows:
-        raise LessonError("Не удалось найти занятия!")
+        raise LessonError("Не удалось найти занятия")
     lessons: list[Lesson] = []
     for row in rows:
         lessons.append(Lesson(**row))
@@ -156,6 +156,7 @@ async def get_available_upcoming_lessons_from_db(user_id: int):
 
 
 async def get_lecturer_lessons(lecturer_id: int):
+    "select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name, l.lecturer_id FROM lesson l join user u on u.id=l.lecturer_id WHERE l.lecturer_id=:lecturer_id"
     sql = select_where("lesson", "*", "lecturer_id=:lecturer_id")
     rows = await fetch_all(sql, {"lecturer_id": lecturer_id})
 
@@ -183,8 +184,8 @@ async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
 
 
 async def _fetch_all_user_upcoming_lessons(user_id: str | int):
-    sql = """select l.id, l.title, l.time_start, l.num_of_seats, l.lecturer, l.lecturer_id from lesson l \
-            join user_lesson ul on l.id=ul.lesson_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < l.time_start"""  # не * а конкретные поля
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id from lesson l
+            join user_lesson ul on l.id=ul.lesson_id join user u on u.id=l.lecturer_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < l.time_start"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
 
 
@@ -201,3 +202,22 @@ def calculate_timedelta(lesson_start_dt):
         user_dt_utc.minute,
     )
     return lesson_dt_utc - user_dt_utc
+
+
+async def get_lessons_button(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, lessons_func, state
+):
+    user_tg_id = context.user_data.get("curr_user_tg_id")
+    if user_tg_id is None:
+        await update.callback_query.edit_message_text("Что-то пошло не так")
+        return None, state
+
+    try:
+        user = await get_user(user_tg_id)
+        lessons = await lessons_func(user.id)
+    except (LessonError, UserError) as e:
+        logging.getLogger(__name__).exception(e)
+        await update.callback_query.edit_message_text(str(e))
+        return None, state
+
+    return lessons, None

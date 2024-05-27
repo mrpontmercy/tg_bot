@@ -7,10 +7,12 @@ from telegram.ext import ContextTypes
 
 from config import (
     CALLBACK_DATA_CANCEL_LESSON,
+    CALLBACK_DATA_DELETE_LESSON,
     CALLBACK_DATA_DELETESUBSCRIPTION,
     CALLBACK_DATA_SUBSCRIBE,
 )
 from handlers.admin import list_available_subs, remove_subscription
+from handlers.lecturer import cancel_lesson_by_lecturer
 from handlers.lesson import (
     cancel_lesson,
     show_lessons,
@@ -34,6 +36,7 @@ async def confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    # action_confirm_action
     action = query.data.split("_")[0]
     if action == CALLBACK_DATA_SUBSCRIBE:
         await subscribe_to_lesson(update, context)
@@ -41,6 +44,8 @@ async def confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == CALLBACK_DATA_CANCEL_LESSON:
         await cancel_lesson(update, context)
         await show_my_lessons(update, context)
+    elif action == CALLBACK_DATA_DELETE_LESSON:
+        await cancel_lesson_by_lecturer(update, context)
     elif action == CALLBACK_DATA_DELETESUBSCRIPTION:
         try:
             await remove_subscription(update, context)

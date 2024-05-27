@@ -5,7 +5,7 @@ from config import TEMPLATE_DIR
 
 
 def render_template(
-    template_name: str, err: str | None = None, data: dict | None = None
+    template_name: str, *, err: str | None = None, data: dict | None = None
 ):
     if data is None:
         data = {}

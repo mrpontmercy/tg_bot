@@ -1,4 +1,6 @@
+import random
 import re
+import string
 
 from telegram import Document
 from telegram.ext import ContextTypes
@@ -9,6 +11,24 @@ from services.exceptions import InputMessageError, SubscriptionError, UserError
 from services.utils import PHONE_NUMBER_PATTERN, Subscription, TransientLesson
 
 
+unity = string.ascii_letters + string.digits
+
+
+async def generate_sub_key(k: int):
+    try:
+        subs = await get_all_subs()
+    except SubscriptionError as e:
+        pass
+    else:
+        subs = []
+    while True:
+        sub_key = "".join(random.choices(unity, k=k))
+        if not any([True if sub_key in el else False for el in subs]):
+            break
+
+    return sub_key
+
+
 async def save_file(recived_file: Document, context: ContextTypes.DEFAULT_TYPE):
     file = await context.bot.get_file(recived_file)
     saved_file_path = LESSONS_DIR / recived_file.file_name
@@ -16,22 +36,35 @@ async def save_file(recived_file: Document, context: ContextTypes.DEFAULT_TYPE):
     return saved_file_path
 
 
+async def get_lecturer_by_phone(phone_number):
+    try:
+        lecturer = await get_user_by_phone_number(phone_number)
+    except UserError:
+        return None, f"Нет пользователя с номером {phone_number}"
+    else:
+        if lecturer.status != "Преподаватель":
+            return (
+                None,
+                f"Пользователь с номером {phone_number} не является преподавателем",
+            )
+
+    return lecturer, None
+
+
 async def insert_lessons_into_db(lessons: list[TransientLesson]):
     res_err = []
     for lesson in lessons:
-        try:
-            lecturer = await get_user_by_phone_number(lesson.lecturer_phone)
-        except UserError:
-            res_err.append(
-                f"Не удалось записать урок {lesson.title} {lesson.time_start}. Нет преподавателя с таким номером телефона!"
-            )
+        lecturer, message = await get_lecturer_by_phone(lesson.lecturer_phone)
+        if lecturer is None:
+            res_err.append((message, lesson.title))
             continue
+
         params = lesson.to_dict()
         del params["lecturer_phone"]
-        params["lecturer"] = lecturer.f_name
         params["lecturer_id"] = lecturer.id
+        # TODO Возможно стоит переписать под executemany чтобы был только один запрос
         await execute(
-            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer, :lecturer_id)""",
+            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer_id)""",
             params,
         )
     return res_err
