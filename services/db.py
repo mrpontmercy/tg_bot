@@ -1,4 +1,5 @@
 from typing import Any, Iterable
+from config import LECTURER_STR
 from db import execute, fetch_all, fetch_one
 from services.exceptions import UserError
 from services.utils import Lesson, Subscription, UserID
@@ -121,7 +122,7 @@ async def get_user_by_phone_number(phone_number):
 
 
 async def get_lecturers():
-    sql = select_where("user", "*", "status='Преподаватель'")
+    sql = select_where("user", "*", f"status={LECTURER_STR}")
     rows = await fetch_all(sql)
 
     if not rows:

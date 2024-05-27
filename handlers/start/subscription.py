@@ -2,7 +2,7 @@ import logging
 import sqlite3
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-from services.activate import activate_key, validate_args
+from services.subscription import activate_key, validate_args
 from services.exceptions import (
     InputMessageError,
     InvalidSubKey,
@@ -12,7 +12,7 @@ from services.exceptions import (
 from services.db import get_user
 from services.lesson import get_user_subscription
 from services.reply_text import send_error_message
-from services.states import StartHandlerStates
+from services.states import StartHandlerState
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def activate_key_command(
 
     await update.message.reply_text("Отправьте ключ абонимента!")
     context.user_data["curr_user_tg_id"] = user.telegram_id
-    return StartHandlerStates.ACTIVATE_KEY
+    return StartHandlerState.ACTIVATE_KEY
 
 
 async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -43,7 +43,7 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
     except InputMessageError as e:
         logger.exception(e)
         await send_error_message(user_tg_id, context, err=str(e))
-        return StartHandlerStates.ACTIVATE_KEY
+        return StartHandlerState.ACTIVATE_KEY
 
     sub_key = args[0]
     if user_tg_id is None:
@@ -56,15 +56,15 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
     except (InvalidSubKey, UserError) as e:
         logger.exception(e)
         await send_error_message(user_tg_id, context, err=str(e))
-        return StartHandlerStates.ACTIVATE_KEY
+        return StartHandlerState.ACTIVATE_KEY
     except sqlite3.OperationalError as e:
         logger.exception(e)
         await send_error_message(user_tg_id, context, err=str(e))
-        return StartHandlerStates.START
+        return StartHandlerState.START
 
     await update.effective_message.reply_text(final_message)
 
-    return StartHandlerStates.START
+    return StartHandlerState.START
 
 
 async def show_number_of_remaining_classes_on_subscription(
@@ -76,9 +76,9 @@ async def show_number_of_remaining_classes_on_subscription(
     except SubscriptionError as e:
         logger.exception(e)
         await send_error_message(update.message.from_user.id, context, err=str(e))
-        return StartHandlerStates.START
+        return StartHandlerState.START
     await context.bot.send_message(
         user.telegram_id,
         f"У вас осталось {subscription.num_of_classes} занятий на абонименте",
     )
-    return StartHandlerStates.START
+    return StartHandlerState.START

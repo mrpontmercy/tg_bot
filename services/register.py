@@ -8,6 +8,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 
+from config import LECTURER_STR
+from handlers.begin import start_command
 from services.db import (
     execute_insert,
     get_user,
@@ -87,6 +89,28 @@ async def get_user_from_db(user_tg_id, state, context):
     return user
 
 
+def lecturer_required(state):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            user_tg_id = update.effective_user.id
+            status = context.user_data.get("curr_user_status")
+            if status and status == LECTURER_STR:
+                return await func(update, context)
+            else:
+                logging.getLogger(__name__).exception(
+                    f"{func.__module__}::{func.__name__} - error \n" + str(e)
+                )
+                await send_error_message(
+                    user_tg_id, context, err="Пользователь не является преподавателем"
+                )
+                return state
+
+        return wrapper
+
+    return decorator
+
+
 def user_required(state):
     def decorator(func):
         @functools.wraps(func)
@@ -99,8 +123,9 @@ def user_required(state):
                     f"{func.__module__}::{func.__name__} - error \n" + str(e)
                 )
                 await send_error_message(user_tg_id, context, err=str(e))
+                await start_command(update, context)
                 return state
-
+            context.user_data["curr_user_status"] = user.status
             return await func(update, context)
 
         return wrapper

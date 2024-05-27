@@ -2,6 +2,7 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes, filters
 
+from config import LECTURER_STR
 from services.db import get_user
 from services.exceptions import UserError
 from services.filters import ADMIN_FILTER, is_admin
@@ -13,7 +14,7 @@ from services.kb import (
     KB_START_COMMAND_REGISTERED_LECTURER,
     KB_START_COMMAND_REGISTERED_LECTURER_ADMIN,
 )
-from services.states import StartHandlerStates
+from services.states import StartHandlerState
 from services.templates import render_template
 
 
@@ -22,7 +23,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = await get_current_keyboard(update)
 
     await update.message.reply_text(render_template("start.jinja"), reply_markup=kb)
-    return StartHandlerStates.START
+    return StartHandlerState.START
 
 
 async def get_current_keyboard(update: Update):
@@ -39,11 +40,11 @@ async def get_current_keyboard(update: Update):
     else:
         if (
             ADMIN_FILTER.check_update(update) or is_admin(user_tg_id)
-        ) and status == "Преподаватель":
+        ) and status == LECTURER_STR:
             kb = KB_START_COMMAND_REGISTERED_LECTURER_ADMIN
         elif ADMIN_FILTER.check_update(update) or is_admin(user_tg_id):
             kb = KB_START_COMMAND_REGISTERED_ADMIN
-        elif status == "Преподаватель":
+        elif status == LECTURER_STR:
             kb = KB_START_COMMAND_REGISTERED_LECTURER
         else:
             kb = KB_START_COMMAND_REGISTERED

@@ -4,7 +4,7 @@ import string
 
 from telegram import Document
 from telegram.ext import ContextTypes
-from config import LESSONS_DIR
+from config import LECTURER_STR, LESSONS_DIR
 from db import execute, fetch_all
 from services.db import execute_delete, execute_update, get_user_by_phone_number
 from services.exceptions import InputMessageError, SubscriptionError, UserError
@@ -42,7 +42,7 @@ async def get_lecturer_by_phone(phone_number):
     except UserError:
         return None, f"Нет пользователя с номером {phone_number}"
     else:
-        if lecturer.status != "Преподаватель":
+        if lecturer.status != LECTURER_STR:
             return (
                 None,
                 f"Пользователь с номером {phone_number} не является преподавателем",
@@ -80,7 +80,7 @@ async def update_user_to_lecturer(user_id):
         "status=:status",
         "id=:user_id",
         {
-            "status": "Преподаватель",
+            "status": LECTURER_STR,
             "user_id": user_id,
         },
     )

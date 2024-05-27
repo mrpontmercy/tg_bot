@@ -5,6 +5,8 @@ from config import (
     CALLBACK_DATA_DELETE_LESSON,
     CALLBACK_DATA_DELETESUBSCRIPTION,
     CALLBACK_DATA_EDIT_LESSON,
+    CALLBACK_DATA_EDIT_TIMESTART_LESSON,
+    CALLBACK_DATA_EDIT_TITLE_LESSON,
     CALLBACK_DATA_SUBSCRIBE,
 )
 
@@ -86,6 +88,23 @@ KB_LECTURER_EDIT_LESSON = ReplyKeyboardMarkup(
         ],
     ]
 )
+
+
+def get_edit_lesson_kb(prefix):
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "Изменить заголовок",
+                callback_data=f"{prefix}{CALLBACK_DATA_EDIT_TITLE_LESSON}",
+            ),
+            InlineKeyboardButton(
+                "Изменить дату и время",
+                callback_data=f"{prefix}{CALLBACK_DATA_EDIT_TIMESTART_LESSON}",
+            ),
+        ],
+        [InlineKeyboardButton("Назад", callback_data=f"{prefix}_back")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 
 def get_confirmation_keyboard(prefix: str) -> InlineKeyboardMarkup:

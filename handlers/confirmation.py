@@ -11,9 +11,9 @@ from config import (
     CALLBACK_DATA_DELETESUBSCRIPTION,
     CALLBACK_DATA_SUBSCRIBE,
 )
-from handlers.admin import list_available_subs, remove_subscription
-from handlers.lecturer import cancel_lesson_by_lecturer
-from handlers.lesson import (
+from handlers.admin.admin import list_available_subs, remove_subscription
+from handlers.lecturer.lecturer import cancel_lesson_by_lecturer
+from handlers.start.lesson import (
     cancel_lesson,
     show_lessons,
     show_my_lessons,

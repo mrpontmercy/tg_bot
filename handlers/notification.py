@@ -1,16 +1,10 @@
 import logging
 
-from telegram import Update
 from telegram.ext import ContextTypes
 from services.db import get_user, get_user_by_id
 from services.exceptions import UserError
 from services.templates import render_template
 from services.utils import Lesson
-
-
-async def notify_users_about_cancel_lesson(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-): ...
 
 
 async def notify_lecturer(

@@ -1,19 +1,17 @@
 import logging
-from telegram import Update
 from telegram.ext import (
     Application,
-    ContextTypes,
 )
 import config
 from db import close_db
 from init_handlers import (
     ADMIN_HANDLER,
-    ADMIN_HANDLER_2,
     CQH_AVAILABLE_SUBS_BUTTONS,
     CQH_CONFIRM_SUBCRIBE_CANCEL,
     CQH_CONFIRM_SUBCRIBE_YES,
     CQH_CONFIRM_SUBSCRIBE,
-    CQH_LECTURER_CANCEL_LESSON_BUTTONS,
+    CQH_LECTURER_START_EDIT_LESSON_BUTTONS,
+    CQH_LECTURER_LESSON_BUTTONS,
     CQH_LESSON_BUTTONS,
     CQH_USER_LESSON_BUTTONS,
     REGISTER_USER_HANDLER,
@@ -35,7 +33,7 @@ def main():
 
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
-    app.add_handler(ADMIN_HANDLER_2)
+    app.add_handler(ADMIN_HANDLER)
     app.add_handler(CQH_AVAILABLE_SUBS_BUTTONS)
     app.add_handler(START_HANDLER)
     app.add_handler(REGISTER_USER_HANDLER)
@@ -44,7 +42,8 @@ def main():
     app.add_handler(CQH_CONFIRM_SUBCRIBE_CANCEL)
     app.add_handler(CQH_LESSON_BUTTONS)
     app.add_handler(CQH_USER_LESSON_BUTTONS)
-    app.add_handler(CQH_LECTURER_CANCEL_LESSON_BUTTONS)
+    app.add_handler(CQH_LECTURER_LESSON_BUTTONS)
+    app.add_handler(CQH_LECTURER_START_EDIT_LESSON_BUTTONS)
 
     app.run_polling(drop_pending_updates=True)
 
