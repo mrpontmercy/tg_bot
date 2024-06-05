@@ -26,3 +26,4 @@ class EditLessonState(Enum):
     CHOOSE_OPTION = auto()
     EDIT_TITLE = auto()
     EDIT_TIMESTART = auto()
+    EDIT_NUM_OF_SEATS = auto()

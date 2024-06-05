@@ -8,8 +8,10 @@ from telegram.ext import (
 import config
 from handlers.lecturer.lecturer import (
     begin_edit_lesson,
-    edit_lesson,
+    edit_num_of_seats_lesson,
+    edit_title_lesson,
     edit_time_start_lesson,
+    enter_num_of_seats_lesson,
     enter_time_start_lesson,
     enter_title_lesson,
     insert_lessons_from_file_lecturer,
@@ -17,8 +19,8 @@ from handlers.lecturer.lecturer import (
     send_file_lessons_lecturer,
     show_lecturer_lessons,
 )
-from handlers.start.subscription import (
-    activate_key_command,
+from handlers.student.subscription import (
+    activate_subkey_command,
     register_sub_key_to_user,
     show_number_of_remaining_classes_on_subscription,
 )
@@ -40,7 +42,7 @@ from handlers.confirmation import (
     confirm_action,
     confirmation_action_handler,
 )
-from handlers.start.lesson import (
+from handlers.student.lesson import (
     available_lessons_button,
     show_lessons,
     show_my_lessons,
@@ -209,17 +211,29 @@ EDIT_LESSON_HANDLER = ConversationHandler(
                 & ~filters.Regex("^Назад$"),
                 enter_time_start_lesson,
             ),
+            MessageHandler(
+                filters.Regex("^Изменить количество доступных мест$")
+                & PRIVATE_CHAT_FILTER
+                & ~filters.Regex("^Назад$"),
+                enter_num_of_seats_lesson,
+            ),
         ],
         EditLessonState.EDIT_TITLE: [
             MessageHandler(
                 filters.TEXT & PRIVATE_CHAT_FILTER & ~filters.Regex("^Назад$"),
-                edit_lesson,
+                edit_title_lesson,
             )
         ],
         EditLessonState.EDIT_TIMESTART: [
             MessageHandler(
                 filters.TEXT & PRIVATE_CHAT_FILTER & ~filters.Regex("^Назад$"),
                 edit_time_start_lesson,
+            )
+        ],
+        EditLessonState.EDIT_NUM_OF_SEATS: [
+            MessageHandler(
+                filters.TEXT & PRIVATE_CHAT_FILTER & ~filters.Regex("^Назад$"),
+                edit_num_of_seats_lesson,
             )
         ],
     },
@@ -252,7 +266,7 @@ START_HANDLER = ConversationHandler(
             ),
             MessageHandler(
                 filters.Regex("^Активировать ключ$") & PRIVATE_CHAT_FILTER,
-                activate_key_command,
+                activate_subkey_command,
             ),
             MessageHandler(
                 filters.Regex("^Оставшееся количество занятий$") & PRIVATE_CHAT_FILTER,

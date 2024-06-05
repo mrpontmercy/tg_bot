@@ -4,7 +4,9 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
 from handlers.begin import get_current_keyboard
-from handlers.start.lesson import _lessons_button
+from handlers.login_decorators.login_required import lecturer_required
+from handlers.student.lesson import _lessons_button
+from services.exceptions import LessonError
 from services.utils import (
     get_saved_lessonfile_path,
     make_lessons_params,
@@ -16,20 +18,20 @@ from services.db import (
 )
 from services.kb import KB_LECTURER_EDIT_LESSON, get_flipKB_with_edit
 from services.lecturer import (
+    change_lesson_num_of_seats,
     change_lesson_time_start,
     change_lesson_title,
     process_cancel_lesson_by_lecturer,
 )
 from services.lesson import get_lessons_button, get_lessons_from_file
-from services.register import lecturer_required, user_required
+from handlers.login_decorators.login_required import user_required
 from services.reply_text import send_error_message
 from services.states import EditLessonState, StartHandlerState
 from services.templates import render_template
-from services.utils import Lesson, make_lesson_params
+from services.utils import Lesson
 
 from config import (
     CALLBACK_LECTURER_LESSON_PREFIX,
-    LECTURER_STATUS,
 )
 
 
@@ -74,7 +76,7 @@ async def insert_lessons_from_file_lecturer(
             err="Неверно заполнен файл. Возможно файл пустой. Попробуй с другим файлом.",
         )
         # TODO добавить верный стейт
-        return 0
+        return StartHandlerState.SEND_FILE_LESSONS_LECTURER
     params = make_lessons_params(lessons, lecuturer_id=lecturer.id)
 
     await insert_lessons_into_db(params)
@@ -129,7 +131,11 @@ async def begin_edit_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_tg_id,
         render_template(
             "edit_lesson.jinja",
-            data={"title": curr_lesson.title, "time_start": curr_lesson.time_start},
+            data={
+                "title": curr_lesson.title,
+                "time_start": curr_lesson.time_start,
+                "num_of_seats": curr_lesson.num_of_seats,
+            },
         ),
         reply_markup=KB_LECTURER_EDIT_LESSON,
         parse_mode=ParseMode.HTML,
@@ -157,9 +163,19 @@ async def enter_time_start_lesson(update: Update, context: ContextTypes.DEFAULT_
     return EditLessonState.EDIT_TIMESTART
 
 
+@user_required(StartHandlerState.START)
+@lecturer_required(EditLessonState.CHOOSE_OPTION)
+async def enter_num_of_seats_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(
+        update.effective_user.id,
+        "Отправьте новое количество оставшихся свободных мест на занятие!",
+    )
+    return EditLessonState.EDIT_NUM_OF_SEATS
+
+
 @user_required(ConversationHandler.END)
 @lecturer_required(ConversationHandler.END)
-async def edit_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def edit_title_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_tg_id = update.effective_user.id
 
     state = await change_lesson_title(user_tg_id, update.message.text, context)
@@ -191,6 +207,24 @@ async def edit_time_start_lesson(update: Update, context: ContextTypes.DEFAULT_T
     return EditLessonState.CHOOSE_OPTION
 
 
+@user_required(ConversationHandler.END)
+@lecturer_required(ConversationHandler.END)
+async def edit_num_of_seats_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_tg_id = update.effective_user.id
+
+    state = await change_lesson_num_of_seats(user_tg_id, update.message.text, context)
+
+    if state:
+        return state
+
+    kb = await get_current_keyboard(update)
+    await context.bot.send_message(
+        user_tg_id, "Количество мест на занятие успешно обновлено!", reply_markup=kb
+    )
+
+    return EditLessonState.CHOOSE_OPTION
+
+
 @user_required(StartHandlerState.START)
 @lecturer_required(StartHandlerState.START)
 async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -199,11 +233,12 @@ async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TY
     lecturer = await get_user_by_tg_id(telegram_id=user_tg_id)
 
     context.user_data["curr_user_tg_id"] = lecturer.telegram_id
-    lessons = await get_lecturer_upcomming_lessons(lecturer.id)
-
-    if lessons is None:
-        await send_error_message(user_tg_id, context, err="У вас ещё нет занятий.")
+    try:
+        lessons = await get_lecturer_upcomming_lessons(lecturer.id)
+    except LessonError as e:
+        await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerState.START
+
     context.user_data["curr_lesson"] = lessons[0]
     kb = get_flipKB_with_edit(
         0,

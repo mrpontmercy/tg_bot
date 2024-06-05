@@ -1,3 +1,5 @@
+import logging
+from sqlite3 import Error
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -80,33 +82,42 @@ async def activate_key(sub_key: str, user: UserID):
     if sub_by_user is not None:
         num_of_classes_left = sub_by_user.num_of_classes
         result_num_of_classes = num_of_classes_left + curr_key_sub.num_of_classes
-        await execute_delete(
-            "subscription",
-            "user_id=:user_id",
-            {"user_id": user.id},
-            autocommit=False,
-        )
+        try:
+            await execute_delete(
+                "subscription",
+                "user_id=:user_id",
+                {"user_id": user.id},
+                autocommit=False,
+            )
+            await execute_update(
+                "subscription",
+                "user_id=:user_id, num_of_classes=:num_of_classes",
+                "sub_key=:sub_key",
+                {
+                    "num_of_classes": result_num_of_classes,
+                    "user_id": user.id,
+                    "sub_key": curr_key_sub.sub_key,
+                },
+                autocommit=False,
+            )
+        except Error as e:
+            logging.getLogger(__name__).exception(e)
+            await (await get_db()).rollback()
+            raise
+        await (await get_db()).commit()
+        return "Ваш абонимент обновлен"
+    try:
         await execute_update(
             "subscription",
             "user_id=:user_id, num_of_classes=:num_of_classes",
             "sub_key=:sub_key",
             {
-                "num_of_classes": result_num_of_classes,
+                "num_of_classes": curr_key_sub.num_of_classes,
                 "user_id": user.id,
                 "sub_key": curr_key_sub.sub_key,
             },
-            autocommit=False,
         )
-        await (await get_db()).commit()
-        return "Ваш абонимент обновлен"
-    await execute_update(
-        "subscription",
-        "user_id=:user_id, num_of_classes=:num_of_classes",
-        "sub_key=:sub_key",
-        {
-            "num_of_classes": curr_key_sub.num_of_classes,
-            "user_id": user.id,
-            "sub_key": curr_key_sub.sub_key,
-        },
-    )
+    except Error as e:
+        logging.getLogger(__name__).exception(e)
+        raise
     return "Ваш абонимент активирован"

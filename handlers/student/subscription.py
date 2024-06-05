@@ -17,7 +17,7 @@ from services.states import StartHandlerState
 logger = logging.getLogger(__name__)
 
 
-async def activate_key_command(
+async def activate_subkey_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
@@ -57,7 +57,7 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         logger.exception(e)
         await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerState.ACTIVATE_KEY
-    except sqlite3.OperationalError as e:
+    except sqlite3.Error as e:
         logger.exception(e)
         await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerState.START

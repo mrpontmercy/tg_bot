@@ -12,6 +12,7 @@ from config import (
 )
 
 from handlers.begin import get_current_keyboard
+from handlers.login_decorators.login_required import lecturer_required
 from services.db import get_user_by_tg_id
 from services.exceptions import LessonError, SubscriptionError, UserError
 from services.kb import (
@@ -27,7 +28,8 @@ from services.lesson import (
     process_sub_to_lesson,
     update_info_after_cancel_lesson,
 )
-from services.register import lecturer_required, user_required
+from handlers.login_decorators.login_required import user_required
+from services.notification import notify_lecturer
 from services.reply_text import send_error_message
 from services.states import StartHandlerState
 from services.templates import render_template
@@ -127,16 +129,17 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return StartHandlerState.START
 
     before_lesson_time = calculate_timedelta(lesson.time_start)
+
     if before_lesson_time.total_seconds() // 3600 < 2:
         await update.callback_query.edit_message_text(
             "До занятия осталось меньше 2х часов. Отменить занятие не получится"
         )
         return StartHandlerState.START
 
+    user = await get_user_by_tg_id(user_tg_id)
     try:
-        user = await get_user_by_tg_id(user_tg_id)
         await update_info_after_cancel_lesson(lesson, user)
-    except (SubscriptionError, UserError) as e:
+    except SubscriptionError as e:
         await send_error_message(user_tg_id, context, err=str(e))
         return StartHandlerState.START
     except sqlite3.Error as e:
@@ -145,6 +148,9 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!"
         )
         return StartHandlerState.START
+
+    lecturer_id = lesson.lecturer_id
+    await notify_lecturer(f"{user.f_name} {user.s_name}", lecturer_id, lesson, context)
     await update.callback_query.edit_message_text("Занятие успешно отменено!")
     return StartHandlerState.START
 

@@ -1,28 +1,18 @@
-import functools
 import logging
 import re
-import traceback
 from typing import Any, Iterable
 
-from telegram import Update
-from telegram.ext import ContextTypes
 
-
-from config import LECTURER_STR
-from handlers.begin import start_command
 from services.db import (
     execute_insert,
-    get_user_by_tg_id,
 )
 from services.exceptions import (
-    UserError,
     ValidationEmailError,
     ValidationFirstNameError,
     ValidationPhoneNumberError,
     ValidationSecondNameError,
     ValidationUserError,
 )
-from services.reply_text import send_error_message
 from services.utils import (
     User,
     EMAIL_PATTERN,
@@ -76,47 +66,3 @@ def _validate_user(user_info: list[str]) -> User:
 
     user = User(*user_info)
     return user
-
-
-def lecturer_required(state):
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            user_tg_id = update.effective_user.id
-            status = context.user_data.get("curr_user_status")
-            if status and status == LECTURER_STR:
-                return await func(update, context)
-            else:
-                logging.getLogger(__name__).exception(
-                    f"{func.__module__}::{func.__name__} - error \n" + str(e)
-                )
-                await send_error_message(
-                    user_tg_id, context, err="Пользователь не является преподавателем"
-                )
-                return state
-
-        return wrapper
-
-    return decorator
-
-
-def user_required(state):
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            user_tg_id = update.effective_user.id
-            try:
-                user = await get_user_by_tg_id(user_tg_id)
-            except UserError as e:
-                logging.getLogger(__name__).exception(
-                    f"{func.__module__}::{func.__name__} - error \n" + str(e)
-                )
-                await send_error_message(user_tg_id, context, err=str(e))
-                await start_command(update, context)
-                return state
-            context.user_data["curr_user_status"] = user.status
-            return await func(update, context)
-
-        return wrapper
-
-    return decorator

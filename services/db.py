@@ -100,7 +100,7 @@ async def get_users_by_id(user_ids: list[int]):
 
 
 async def get_lecturer_upcomming_lessons(lecturer_id: int):
-    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id FROM lesson l
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer_full_name, l.lecturer_id FROM lesson l
             join user u on u.id=l.lecturer_id WHERE l.lecturer_id=:lecturer_id AND strftime("%Y-%m-%d %H:%M", "now", "4 hours") < l.time_start ORDER BY l.time_start"""
     rows = await fetch_all(sql, {"lecturer_id": lecturer_id})
 
@@ -118,20 +118,6 @@ async def get_user_by_phone_number(phone_number):
     return UserID(**row)
 
 
-async def get_lecturers():
-    sql = select_where("user", "*", f"status={LECTURER_STATUS}")
-    rows = await fetch_all(sql)
-
-    if not rows:
-        return None
-
-    res = []
-    for row in rows:
-        res.append(UserID(**row))
-
-    return res
-
-
 async def insert_lesson_in_db(params):
     await execute(
         """INSERT INTO lesson (title, time_start, num_of_seats, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer_id)""",
@@ -144,3 +130,15 @@ async def insert_lessons_into_db(params: list[Iterable[Any]]):
         await insert_lesson_in_db(
             param,
         )
+
+
+async def get_all_users_of_lesson(params_lesson_id: dict):
+    user_ids = await fetch_all(
+        "SELECT user_id from user_lesson where lesson_id=:lesson_id", params_lesson_id
+    )
+
+    all_students_of_lesson = await get_users_by_id(
+        [v for item in user_ids for v in item.values()]
+    )
+
+    return all_students_of_lesson

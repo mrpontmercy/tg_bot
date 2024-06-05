@@ -5,6 +5,7 @@ from pathlib import Path
 
 from telegram import Update
 from telegram.ext import ContextTypes
+from aiosqlite import Error
 
 from config import DATETIME_FORMAT
 from db import fetch_all, fetch_one, get_db
@@ -26,32 +27,37 @@ from services.utils import Lesson, Subscription, TransientLesson, UserID
 
 
 async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
-    await execute_update(
-        "lesson",
-        "num_of_seats=:num_of_seats",
-        "id=:l_id",
-        {"num_of_seats": lesson.num_of_seats + 1, "l_id": lesson.id},
-        autocommit=False,
-    )
     try:
         curr_sub = await get_user_subscription(user.id)
     except SubscriptionError as e:
         raise
+    try:
+        await execute_update(
+            "lesson",
+            "num_of_seats=:num_of_seats",
+            "id=:l_id",
+            {"num_of_seats": lesson.num_of_seats + 1, "l_id": lesson.id},
+            autocommit=False,
+        )
 
-    await execute_update(
-        "subscription",
-        "num_of_classes=:num_of_classes",
-        "user_id=:user_id",
-        {"num_of_classes": curr_sub.num_of_classes + 1, "user_id": user.id},
-        autocommit=False,
-    )
+        await execute_update(
+            "subscription",
+            "num_of_classes=:num_of_classes",
+            "user_id=:user_id",
+            {"num_of_classes": curr_sub.num_of_classes + 1, "user_id": user.id},
+            autocommit=False,
+        )
 
-    await execute_delete(
-        "user_lesson",
-        "lesson_id=:lesson_id AND user_id=:user_id",
-        {"user_id": user.id, "lesson_id": lesson.id},
-        autocommit=False,
-    )
+        await execute_delete(
+            "user_lesson",
+            "lesson_id=:lesson_id AND user_id=:user_id",
+            {"user_id": user.id, "lesson_id": lesson.id},
+            autocommit=False,
+        )
+    except Error as e:
+        logging.getLogger(__name__).exception(e)
+        await (await get_db()).rollback()
+        raise
 
     await (await get_db()).commit()
 
@@ -83,38 +89,42 @@ async def process_sub_to_lesson(lesson: Lesson, sub: Subscription):
     is_subscribed = await already_subscribed_to_lesson(lesson.id, sub.user_id)
     if is_subscribed:
         raise LessonError("Вы уже записались на это занятие!")
-    await execute_update(
-        "lesson",
-        "num_of_seats=:seats_left",
-        "id=:lesson_id",
-        {
-            "seats_left": lesson.num_of_seats - 1,
-            "lesson_id": lesson.id,
-        },
-        autocommit=False,
-    )
-    await execute_update(
-        "subscription",
-        "num_of_classes=:num_class_left",
-        "user_id=:user_id",
-        {
-            "num_class_left": sub.num_of_classes - 1,
-            "user_id": sub.user_id,
-        },
-        autocommit=False,
-    )
-    await execute_insert(
-        "user_lesson",
-        "user_id, lesson_id",
-        ":user_id, :lesson_id",
-        {
-            "user_id": sub.user_id,
-            "lesson_id": lesson.id,
-        },
-        autocommit=False,
-    )
-    db = await get_db()
-    await db.commit()
+    try:
+        await execute_update(
+            "lesson",
+            "num_of_seats=:seats_left",
+            "id=:lesson_id",
+            {
+                "seats_left": lesson.num_of_seats - 1,
+                "lesson_id": lesson.id,
+            },
+            autocommit=False,
+        )
+        await execute_update(
+            "subscription",
+            "num_of_classes=:num_class_left",
+            "user_id=:user_id",
+            {
+                "num_class_left": sub.num_of_classes - 1,
+                "user_id": sub.user_id,
+            },
+            autocommit=False,
+        )
+        await execute_insert(
+            "user_lesson",
+            "user_id, lesson_id",
+            ":user_id, :lesson_id",
+            {
+                "user_id": sub.user_id,
+                "lesson_id": lesson.id,
+            },
+            autocommit=False,
+        )
+    except Error as e:
+        logging.getLogger(__name__).exception(e)
+        await (await get_db()).rollback()
+        raise
+    await (await get_db()).commit()
 
 
 def get_lessons_from_file(
@@ -140,7 +150,7 @@ def get_lessons_from_file(
 
 
 async def get_available_upcoming_lessons_from_db(user_id: int):
-    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id from lesson l 
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer_full_name, l.lecturer_id from lesson l 
             left join user_lesson ul on ul.lesson_id=l.id AND ul.user_id=:user_id join user u on u.id=l.lecturer_id 
             WHERE ul.lesson_id is NULL AND strftime("%Y-%m-%d %H:%M", "now", "4 hours") < l.time_start"""
 
@@ -187,7 +197,7 @@ async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
 
 
 async def fetch_all_user_upcoming_lessons(user_id: str | int):
-    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id from lesson l
+    sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer_full_name, l.lecturer_id from lesson l
             join user_lesson ul on l.id=ul.lesson_id join user u on u.id=l.lecturer_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < l.time_start"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
 

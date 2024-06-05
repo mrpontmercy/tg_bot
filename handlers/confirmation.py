@@ -13,7 +13,7 @@ from config import (
 )
 from handlers.admin.admin import list_available_subs, remove_subscription
 from handlers.lecturer.lecturer import cancel_lesson_by_lecturer, show_lecturer_lessons
-from handlers.start.lesson import (
+from handlers.student.lesson import (
     cancel_lesson,
     show_lessons,
     show_my_lessons,

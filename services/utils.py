@@ -1,4 +1,3 @@
-from abc import ABC
 from dataclasses import dataclass, field
 import re
 from typing import Any
@@ -102,7 +101,7 @@ class Lesson:
     title: str
     time_start: str
     num_of_seats: str | int
-    lecturer: str
+    lecturer_full_name: str
     lecturer_id: str | int
 
     def __post_init__(self):
@@ -110,7 +109,7 @@ class Lesson:
             isinstance(self.title, str),
             isinstance(self.time_start, str),
             isinstance(self.num_of_seats, (str, int)),
-            isinstance(self.lecturer, str),
+            isinstance(self.lecturer_full_name, str),
             isinstance(self.lecturer_id, (str, int)),
         ]
         if not all(isinstances):
@@ -122,7 +121,7 @@ class Lesson:
             "title": self.title,
             "time_start": self.time_start,
             "num_of_seats": self.num_of_seats,
-            "lecturer": self.lecturer,
+            "lecturer": self.lecturer_full_name,
             "lecturer_id": self.lecturer_id,
         }
 
@@ -133,7 +132,7 @@ class Lesson:
             "title": self.title,
             "time_start": self.time_start,
             "num_of_seats": self.num_of_seats,
-            "lecturer": self.lecturer,
+            "lecturer_full_name": self.lecturer_full_name,
         }
 
 

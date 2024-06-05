@@ -1,6 +1,4 @@
-from functools import partial
 import logging
-import os
 import sqlite3
 import string
 
@@ -8,13 +6,12 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
 
-from config import ADMIN_STATUS, CALLBACK_SUB_PREFIX
+from config import CALLBACK_SUB_PREFIX
 from db import execute
 from handlers.begin import start_command
 from services.admin import (
     delete_subscription,
     generate_sub_key,
-    insert_lessons_into_db,
     process_insert_lesson_into_db,
     update_user_to_lecturer,
     validate_num_of_classes,
@@ -27,12 +24,10 @@ from services.kb import (
     KB_ADMIN_COMMAND,
     get_flip_keyboard,
 )
-from services.lesson import get_lessons_from_file
-from services.register import user_required
 from services.reply_text import send_error_message
 from services.states import AdminState
 from services.templates import render_template
-from services.utils import Subscription, get_saved_lessonfile_path
+from services.utils import Subscription
 
 
 unity = string.ascii_letters + string.digits
@@ -116,8 +111,6 @@ async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE
         return AdminState.CHOOSING
     kb = get_flip_keyboard(0, len(subs), CALLBACK_SUB_PREFIX)
     sub = subs[0]
-    print(f"{sub.sub_key=}")
-    print(f"{sub.num_of_classes=}")
     context.user_data["sub_id"] = sub.id
     await context.bot.send_message(
         update.effective_user.id,
