@@ -55,7 +55,6 @@ async def update_info_after_cancel_lesson(lesson: Lesson, user: UserID):
             autocommit=False,
         )
     except Error as e:
-        logging.getLogger(__name__).exception(e)
         await (await get_db()).rollback()
         raise
 
@@ -121,7 +120,6 @@ async def process_sub_to_lesson(lesson: Lesson, sub: Subscription):
             autocommit=False,
         )
     except Error as e:
-        logging.getLogger(__name__).exception(e)
         await (await get_db()).rollback()
         raise
     await (await get_db()).commit()

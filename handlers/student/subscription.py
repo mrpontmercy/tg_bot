@@ -59,7 +59,9 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         return StartHandlerState.ACTIVATE_KEY
     except sqlite3.Error as e:
         logger.exception(e)
-        await send_error_message(user_tg_id, context, err=str(e))
+        await send_error_message(
+            user_tg_id, context, err="Не удалось выполнить операцию."
+        )
         return StartHandlerState.START
 
     await update.effective_message.reply_text(final_message)

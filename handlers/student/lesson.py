@@ -11,7 +11,7 @@ from config import (
     CALLBACK_USER_LESSON_PREFIX,
 )
 
-from handlers.begin import get_current_keyboard
+from handlers.start import get_current_keyboard
 from handlers.login_decorators.login_required import lecturer_required
 from services.db import get_user_by_tg_id
 from services.exceptions import LessonError, SubscriptionError, UserError
@@ -29,7 +29,7 @@ from services.lesson import (
     update_info_after_cancel_lesson,
 )
 from handlers.login_decorators.login_required import user_required
-from services.notification import notify_lecturer
+from services.notification import notify_lecturer_user_cancel_lesson
 from services.reply_text import send_error_message
 from services.states import StartHandlerState
 from services.templates import render_template
@@ -105,7 +105,6 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # func = user_required(state)(lecturer_required(state)(func))
 @user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
 async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     отменять не поздее чем за 2 часа до занятия
@@ -150,7 +149,9 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return StartHandlerState.START
 
     lecturer_id = lesson.lecturer_id
-    await notify_lecturer(f"{user.f_name} {user.s_name}", lecturer_id, lesson, context)
+    await notify_lecturer_user_cancel_lesson(
+        f"{user.f_name} {user.s_name}", lecturer_id, lesson, context
+    )
     await update.callback_query.edit_message_text("Занятие успешно отменено!")
     return StartHandlerState.START
 

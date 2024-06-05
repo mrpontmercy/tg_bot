@@ -1,9 +1,10 @@
 import os
+from sqlite3 import Error
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
-from handlers.begin import get_current_keyboard
+from handlers.start import get_current_keyboard
 from handlers.login_decorators.login_required import lecturer_required
 from handlers.student.lesson import _lessons_button
 from services.exceptions import LessonError
@@ -37,9 +38,7 @@ from config import (
 
 @user_required(StartHandlerState.START)
 @lecturer_required(StartHandlerState.START)
-async def send_file_lessons_lecturer(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
+async def send_file_lessons_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_tg_id = update.effective_user.id
     await context.bot.send_message(
         user_tg_id,
@@ -100,9 +99,13 @@ async def cancel_lesson_by_lecturer(update: Update, context: ContextTypes.DEFAUL
             update.effective_user.id, "Не удалось найти урок!"
         )
         return EditLessonState.CHOOSE_OPTION
-
-    result_message = await process_cancel_lesson_by_lecturer(lesson, context)
-
+    try:
+        result_message = await process_cancel_lesson_by_lecturer(lesson, context)
+    except Error as e:
+        await send_error_message(
+            update.effective_user.id, context, err="Не удалось выполнить операцию."
+        )
+        return EditLessonState.CHOOSE_OPTION
     await query.edit_message_text(result_message, parse_mode=ParseMode.HTML)
     return EditLessonState.CHOOSE_OPTION
 

@@ -8,7 +8,7 @@ from services.templates import render_template
 from services.utils import Lesson
 
 
-async def notify_lecturer(
+async def notify_lecturer_user_cancel_lesson(
     user_full_name: str,
     lecturer_id: int,
     lesson: Lesson,
@@ -20,7 +20,7 @@ async def notify_lecturer(
         logging.getLogger(__name__).exception(e)
         return None
     message = render_template(
-        "notify_lecturer.jinja",
+        "notify_lecturer_user_cancel_lesson.jinja",
         data={
             "user_full_name": user_full_name,
             "title": lesson.title,

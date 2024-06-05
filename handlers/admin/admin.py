@@ -8,7 +8,7 @@ from telegram.constants import ParseMode
 
 from config import CALLBACK_SUB_PREFIX
 from db import execute
-from handlers.begin import start_command
+from handlers.start import start_command
 from services.admin import (
     delete_subscription,
     generate_sub_key,
@@ -25,6 +25,7 @@ from services.kb import (
     get_flip_keyboard,
 )
 from services.reply_text import send_error_message
+from services.response import send_message
 from services.states import AdminState
 from services.templates import render_template
 from services.utils import Subscription
@@ -35,10 +36,8 @@ unity = string.ascii_letters + string.digits
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = KB_ADMIN_COMMAND
-    await update.message.reply_text(
-        "Привет, в режиме АДМИНА можно создать ключ подписки. Нажми соответствующую кнопку!\n\nЧтобы прервать эту коману напиши: cancel или /cancel",
-        reply_markup=kb,
-    )
+    tg_id = update.effective_user.id
+    await send_message(tg_id, "admin.jinja", context, kb)
     return AdminState.CHOOSING
 
 
@@ -78,7 +77,7 @@ async def make_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return AdminState.CHOOSING
 
 
-async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def send_lessons_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_message.chat_id
     await context.bot.send_message(
         chat_id, "Отправьте файл с уроками установленной формы.\n"
@@ -89,16 +88,20 @@ async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def insert_lesson_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rec_document = update.message.document
     user_tg_id = update.effective_user.id
-    state = await process_insert_lesson_into_db(rec_document, user_tg_id, context)
-    if state is None:
-        await context.bot.send_message(
-            chat_id=user_tg_id,
-            text="Что-то пошло не так",
-            reply_markup=KB_ADMIN_COMMAND,
-            parse_mode=ParseMode.HTML,
-        )
+    if await process_insert_lesson_into_db(rec_document, user_tg_id, context):
         return AdminState.CHOOSING
-    return state
+    else:
+        return AdminState.GET_CSV_FILE
+
+    # if state is None:
+    #     await context.bot.send_message(
+    #         chat_id=user_tg_id,
+    #         text="Что-то пошло не так",
+    #         reply_markup=KB_ADMIN_COMMAND,
+    #         parse_mode=ParseMode.HTML,
+    #     )
+    #     return AdminState.CHOOSING
+    # return state
 
 
 async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE):

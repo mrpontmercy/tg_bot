@@ -78,7 +78,7 @@ async def process_insert_lesson_into_db(
             context,
             err="Неверно заполнен файл. Возможно файл пустой. Попробуй с другим файлом.",
         )
-        return AdminState.GET_CSV_FILE
+        return False
     errors_after_inserting_lessons = await insert_lessons_into_db(lessons)
 
     if errors_after_inserting_lessons:
@@ -95,7 +95,7 @@ async def process_insert_lesson_into_db(
         reply_markup=KB_ADMIN_COMMAND,
         parse_mode=ParseMode.HTML,
     )
-    return AdminState.CHOOSING
+    return True
 
 
 async def insert_lessons_into_db(lessons: list[TransientLesson]):

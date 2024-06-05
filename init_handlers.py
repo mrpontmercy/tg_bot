@@ -34,7 +34,7 @@ from handlers.admin.admin import (
     make_new_subscription,
     return_to_start_command,
     subs_button,
-    update_command,
+    send_lessons_file,
 )
 from handlers.cancel import cancel, sub_cancel
 from handlers.confirmation import (
@@ -49,7 +49,7 @@ from handlers.student.lesson import (
     user_lessons_button,
 )
 from handlers.register.register import REGISTER, register_command, register_user
-from handlers.begin import start_command
+from handlers.start import start_command
 from services.filters import (
     ADMIN_AND_PRIVATE_FILTER,
     ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
@@ -147,9 +147,8 @@ ADMIN_HANDLER = ConversationHandler(
                 list_available_subs,
             ),
             MessageHandler(
-                filters.Regex("^Обновить уроки$")
-                & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
-                update_command,
+                filters.Regex("^Обновить уроки$") & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
+                send_lessons_file,
             ),
             MessageHandler(
                 filters.Regex("^Добавить преподователя$")

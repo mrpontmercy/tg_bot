@@ -1,5 +1,5 @@
 from config import LECTURER_STATUS
-from handlers.begin import start_command
+from handlers.start import start_command
 from services.db import get_user_by_tg_id
 from services.exceptions import UserError
 from services.reply_text import send_error_message

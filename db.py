@@ -21,7 +21,8 @@ async def get_db():
 
 async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict] | list:
     cursor = await _get_cursor(sql, params)
-    # Возможно тут может быть ошибка. Может стоит добавить проверку на None
+    if cursor is None:
+        return []
     rows = await cursor.fetchall()
     results = []
     for row_ in rows:
@@ -32,6 +33,8 @@ async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict] | li
 
 async def fetch_one(sql, params: Iterable[Any] | None = None) -> dict | None:
     cursor = await _get_cursor(sql, params)
+    if cursor is None:
+        return None
     row_ = await cursor.fetchone()
     if row_ is None:
         await cursor.close()
@@ -81,7 +84,11 @@ async def _async_close_db() -> None:
 async def _get_cursor(sql, params: Iterable[Any] | None) -> aiosqlite.Cursor:
     db = await get_db()
     args = (sql, params)
-    cursor = await db.execute(*args)
+    try:
+        cursor = await db.execute(*args)
+    except aiosqlite.DatabaseError as e:
+        logger.exception(e)
+        return None
     db.row_factory = aiosqlite.Row
     return cursor
 

@@ -1,49 +1,17 @@
 import logging
 from sqlite3 import Error
-from telegram import Update
-from telegram.ext import ContextTypes
 
 from db import get_db
 from services.db import (
     fetch_one_subscription_where_cond,
-    fetch_one_user,
     execute_delete,
     execute_update,
 )
 from services.exceptions import (
     InputMessageError,
     InvalidSubKey,
-    UserError,
 )
 from services.utils import Subscription, UserID
-
-
-async def activate_key_command(
-    args: list[str] | None,
-    telegram_id: int,
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
-    """
-    - Проверяем валидность args
-    - Узнаем зарегестрирован ли пользователь
-    - Узнаем есть ли ключ в бд
-    - Узнаем не занят ли ключ
-    Активируем пользователю подписку (Если подписка уже есть, то продлеваем количество дней, старый ключ удаляем)
-    """
-    if args is not None and len(args) != 0:
-        raise InputMessageError("Введен неверный ключ!")
-
-    user = await fetch_one_user(
-        "telegram_id=:telegram_id", {"telegram_id": telegram_id}
-    )
-
-    if user is None:
-        raise UserError("Пользователь не зарегестрирован!")
-
-    sub_key: str = args[0]
-    await activate_key(sub_key, user)
-    return await update.effective_message.reply_text("Подписка успешно обновлена!")
 
 
 def validate_args(args: list[str] | None):
@@ -101,7 +69,6 @@ async def activate_key(sub_key: str, user: UserID):
                 autocommit=False,
             )
         except Error as e:
-            logging.getLogger(__name__).exception(e)
             await (await get_db()).rollback()
             raise
         await (await get_db()).commit()
@@ -118,6 +85,5 @@ async def activate_key(sub_key: str, user: UserID):
             },
         )
     except Error as e:
-        logging.getLogger(__name__).exception(e)
         raise
     return "Ваш абонимент активирован"

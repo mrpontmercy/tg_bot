@@ -23,10 +23,11 @@ async def process_cancel_lesson_by_lecturer(
     all_students_of_lesson = await get_all_users_of_lesson(params_lesson_id)
     print(f"{params_lesson_id=}")
     print(f"{all_students_of_lesson=}")
-    ok = await process_delete_lesson_db(params_lesson_id)
 
-    if not ok:
-        return "Ошибка. Операцию выполнить не удалось!"
+    try:
+        await process_delete_lesson_db(params_lesson_id)
+    except Error as e:
+        raise
     if all_students_of_lesson is None:
         return "Нет записанных студентов.\n\nУрок успешно отменен."
 
@@ -60,9 +61,8 @@ async def process_delete_lesson_db(params_lesson_id):
     except Error as e:
         logging.getLogger(__name__).exception(e)
         await (await get_db()).rollback()
-        return False
+        raise
     await (await get_db()).commit()
-    return True
 
 
 async def change_lesson_title(

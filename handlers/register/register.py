@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from all_strings import GREETINGS
-from handlers.begin import get_current_keyboard
+from handlers.start import get_current_keyboard
 from services.register import (
     insert_user,
     validate_message,

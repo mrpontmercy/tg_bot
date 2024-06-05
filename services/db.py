@@ -1,8 +1,7 @@
 from typing import Any, Iterable
-from config import LECTURER_STATUS
 from db import execute, fetch_all, fetch_one
 from services.exceptions import LessonError, UserError
-from services.utils import Lesson, Subscription, TransientLesson, UserID
+from services.utils import Lesson, Subscription, UserID
 
 
 def update_where_sql(table: str, set_val: str, conditions: str):
@@ -72,9 +71,7 @@ async def fetch_one_subscription_where_cond(
 
 
 async def get_user_by_tg_id(telegram_id: int):
-    user = await fetch_one_user(
-        "telegram_id=:telegram_id", {"telegram_id": telegram_id}
-    )
+    user = await fetch_one_user("telegram_id=:telegram_id", {"telegram_id": telegram_id})
 
     if user is None:
         raise UserError("Пользователь не зарегестрирован")
