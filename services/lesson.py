@@ -13,8 +13,7 @@ from services.db import (
     execute_insert,
     execute_update,
     fetch_one_subscription_where_cond,
-    fetch_one_user,
-    get_user,
+    get_user_by_tg_id,
     select_where,
 )
 from services.exceptions import (
@@ -118,10 +117,12 @@ async def process_sub_to_lesson(lesson: Lesson, sub: Subscription):
     await db.commit()
 
 
-def get_lessons_from_file(file_name: Path) -> list[TransientLesson] | None:
+def get_lessons_from_file(
+    file_path: Path,
+    fieldnames: tuple[str] = ("title", "time_start", "num_of_seats", "lecturer_phone"),
+) -> list[TransientLesson] | None:
     lessons: list[TransientLesson] = []
-    fieldnames = ["title", "time_start", "num_of_seats", "lecturer_phone"]
-    with open(file_name, "r", encoding="utf-8") as file:
+    with open(file_path, "r", encoding="utf-8") as file:
         reader = csv.DictReader(file, fieldnames)
         for row in reader:
             try:
@@ -172,18 +173,20 @@ async def get_lecturer_lessons(lecturer_id: int):
 
 
 async def get_user_upcoming_lessons(user_id) -> list[Lesson]:
-    lessons = await _fetch_all_user_upcoming_lessons(user_id)
+    lessons = await fetch_all_user_upcoming_lessons(user_id)
 
     if lessons is None or not lessons:
         raise LessonError("Не удалось найти занятия пользователя!")
 
     res = []
+
     for row in lessons:
         res.append(Lesson(**row))
+
     return res
 
 
-async def _fetch_all_user_upcoming_lessons(user_id: str | int):
+async def fetch_all_user_upcoming_lessons(user_id: str | int):
     sql = """select l.id, l.title, l.time_start, l.num_of_seats, u.f_name || ' ' || u.s_name as lecturer, l.lecturer_id from lesson l
             join user_lesson ul on l.id=ul.lesson_id join user u on u.id=l.lecturer_id WHERE ul.user_id=:user_id AND strftime('%Y-%m-%d %H:%M', 'now', '4 hours') < l.time_start"""  # не * а конкретные поля
     return await fetch_all(sql, {"user_id": user_id})
@@ -213,7 +216,7 @@ async def get_lessons_button(
         return None, state
 
     try:
-        user = await get_user(user_tg_id)
+        user = await get_user_by_tg_id(user_tg_id)
         lessons = await lessons_func(user.id)
     except (LessonError, UserError) as e:
         logging.getLogger(__name__).exception(e)

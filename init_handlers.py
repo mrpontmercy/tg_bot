@@ -12,6 +12,10 @@ from handlers.lecturer.lecturer import (
     edit_time_start_lesson,
     enter_time_start_lesson,
     enter_title_lesson,
+    insert_lessons_from_file_lecturer,
+    lecturer_lessons_button,
+    send_file_lessons_lecturer,
+    show_lecturer_lessons,
 )
 from handlers.start.subscription import (
     activate_key_command,
@@ -22,7 +26,7 @@ from handlers.admin.admin import (
     admin_command,
     enter_lecturer_phone_number,
     generate_sub,
-    insert_into_lesson,
+    insert_lesson_handler,
     list_available_subs,
     make_lecturer,
     make_new_subscription,
@@ -38,8 +42,6 @@ from handlers.confirmation import (
 )
 from handlers.start.lesson import (
     available_lessons_button,
-    lecturer_lessons_button,
-    show_lecturer_lessons,
     show_lessons,
     show_my_lessons,
     user_lessons_button,
@@ -55,7 +57,7 @@ from services.states import AdminState, EditLessonState, StartHandlerState
 
 CQH_CONFIRM_SUBSCRIBE = CallbackQueryHandler(
     confirmation_action_handler,
-    pattern=f".*({config.CALLBACK_DATA_SUBSCRIBE}|{config.CALLBACK_DATA_CANCEL_LESSON}|{config.CALLBACK_DATA_DELETESUBSCRIPTION}|{config.CALLBACK_DATA_DELETE_LESSON})$",
+    pattern=f".*({config.CALLBACK_DATA_SUBSCRIBE}|{config.CALLBACK_DATA_CANCEL_LESSON}|{config.CALLBACK_DATA_DELETESUBSCRIPTION}|{config.CALLBACK_DATA_CANCEL_LESSON_LECTURER})$",
 )
 
 CQH_CONFIRM_SUBCRIBE_YES = CallbackQueryHandler(
@@ -161,7 +163,7 @@ ADMIN_HANDLER = ConversationHandler(
             MessageHandler(
                 filters.Document.MimeType("text/csv")
                 & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
-                insert_into_lesson,
+                insert_lesson_handler,
             ),
         ],
         AdminState.LECTURER_PHONE: [
@@ -245,6 +247,10 @@ START_HANDLER = ConversationHandler(
                 show_my_lessons,
             ),
             MessageHandler(
+                filters.Regex("^Добавить занятия$") & PRIVATE_CHAT_FILTER,
+                send_file_lessons_lecturer,
+            ),
+            MessageHandler(
                 filters.Regex("^Активировать ключ$") & PRIVATE_CHAT_FILTER,
                 activate_key_command,
             ),
@@ -266,6 +272,12 @@ START_HANDLER = ConversationHandler(
                 & filters.Regex("^(?!cancel$)(?!Отменить$)(?!\/cancel$).+"),
                 callback=register_sub_key_to_user,
             )
+        ],
+        StartHandlerState.SEND_FILE_LESSONS_LECTURER: [
+            MessageHandler(
+                filters.Document.MimeType("text/csv") & PRIVATE_CHAT_FILTER,
+                insert_lessons_from_file_lecturer,
+            ),
         ],
     },
     fallbacks=[

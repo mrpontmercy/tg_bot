@@ -1,14 +1,21 @@
-from dataclasses import dataclass
+from abc import ABC
+from dataclasses import dataclass, field
 import re
 from typing import Any
+import uuid
+
+from telegram import Document
+from telegram.ext import ContextTypes
 
 
+from config import LESSONS_DIR
 from services.exceptions import ColumnCSVError
 
 
 PHONE_NUMBER_PATTERN = r"^[8][0-9]{10}$"  # Для российских номеров
 FS_NAME_PATTERN = r"^[a-zA-Zа-яёА-ЯЁ]{3,}$"
 EMAIL_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+DATE_TIME_PATTERN = r"^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01]) (0?[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$"
 
 
 @dataclass
@@ -34,7 +41,7 @@ class User:
 @dataclass
 class UserID(User):
     id: int
-    status: str
+    status: str = field(default="Студент")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,10 +77,14 @@ class TransientLesson:
     title: str
     time_start: str
     num_of_seats: str
-    lecturer_phone: str
+    lecturer_phone: str | None = None
 
     def __post_init__(self):
-        if not re.fullmatch(PHONE_NUMBER_PATTERN, self.lecturer_phone):
+        if self.lecturer_phone is not None and not re.fullmatch(
+            PHONE_NUMBER_PATTERN, self.lecturer_phone
+        ):
+            raise ColumnCSVError("Неверно заполнены столбцы!")
+        elif not re.fullmatch(DATE_TIME_PATTERN, self.time_start):
             raise ColumnCSVError("Неверно заполнены столбцы!")
 
     def to_dict(self):
@@ -87,12 +98,12 @@ class TransientLesson:
 
 @dataclass
 class Lesson:
+    id: str | int
     title: str
     time_start: str
     num_of_seats: str | int
     lecturer: str
     lecturer_id: str | int
-    id: str | int | None = None
 
     def __post_init__(self):
         isinstances = [
@@ -124,3 +135,33 @@ class Lesson:
             "num_of_seats": self.num_of_seats,
             "lecturer": self.lecturer,
         }
+
+
+def make_lesson_params(lesson: TransientLesson, lecuturer_id: int):
+    param = lesson.to_dict()
+    del param["lecturer_phone"]
+    param["lecturer_id"] = lecuturer_id
+    return param
+
+
+def make_lessons_params(lessons: list[TransientLesson], lecuturer_id: list[int] | int):
+    params = list()
+    for index, lesson in enumerate(lessons):
+        param = lesson.to_dict()
+        del param["lecturer_phone"]
+        if isinstance(lecuturer_id, list):
+            param["lecturer_id"] = lecuturer_id[index]
+        else:
+            param["lecturer_id"] = lecuturer_id
+        params.append(param)
+    return params
+
+
+async def get_saved_lessonfile_path(
+    recived_file: Document, context: ContextTypes.DEFAULT_TYPE
+):
+    file = await context.bot.get_file(recived_file)
+    new_file_name = str(uuid.uuid4()) + "." + recived_file.file_name.split(".")[-1]
+    saved_file_path = LESSONS_DIR / new_file_name
+    await file.download_to_drive(saved_file_path)
+    return saved_file_path

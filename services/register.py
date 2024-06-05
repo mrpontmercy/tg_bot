@@ -12,7 +12,7 @@ from config import LECTURER_STR
 from handlers.begin import start_command
 from services.db import (
     execute_insert,
-    get_user,
+    get_user_by_tg_id,
 )
 from services.exceptions import (
     UserError,
@@ -78,17 +78,6 @@ def _validate_user(user_info: list[str]) -> User:
     return user
 
 
-async def get_user_from_db(user_tg_id, state, context):
-    try:
-        user = await get_user(user_tg_id)
-    except UserError as e:
-        logging.getLogger(__name__).exception(e)
-        await send_error_message(user_tg_id, context, err=str(e))
-        return state
-
-    return user
-
-
 def lecturer_required(state):
     def decorator(func):
         @functools.wraps(func)
@@ -117,7 +106,7 @@ def user_required(state):
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_tg_id = update.effective_user.id
             try:
-                user = await get_user(user_tg_id)
+                user = await get_user_by_tg_id(user_tg_id)
             except UserError as e:
                 logging.getLogger(__name__).exception(
                     f"{func.__module__}::{func.__name__} - error \n" + str(e)

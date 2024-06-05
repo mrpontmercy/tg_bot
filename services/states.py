@@ -4,6 +4,7 @@ from enum import Enum, auto
 class StartHandlerState(Enum):
     START = auto()
     ACTIVATE_KEY = auto()
+    SEND_FILE_LESSONS_LECTURER = auto()
     CHOOSING_LESSON = auto()
     CONFIRM_ACTION = auto()
 

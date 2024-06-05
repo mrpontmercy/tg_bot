@@ -1,14 +1,33 @@
+import os
 import random
 import re
 import string
 
 from telegram import Document
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-from config import LECTURER_STR, LESSONS_DIR
+from config import ADMIN_STATUS, LECTURER_STATUS
 from db import execute, fetch_all
-from services.db import execute_delete, execute_update, get_user_by_phone_number
+from services.db import (
+    execute_delete,
+    execute_update,
+    get_user_by_phone_number,
+    get_users_by_id,
+    insert_lesson_in_db,
+)
 from services.exceptions import InputMessageError, SubscriptionError, UserError
-from services.utils import PHONE_NUMBER_PATTERN, Subscription, TransientLesson
+from services.kb import KB_ADMIN_COMMAND
+from services.lesson import get_lessons_from_file
+from services.reply_text import send_error_message
+from services.states import AdminState
+from services.utils import (
+    PHONE_NUMBER_PATTERN,
+    Subscription,
+    TransientLesson,
+    get_saved_lessonfile_path,
+    make_lesson_params,
+    make_lessons_params,
+)
 
 
 unity = string.ascii_letters + string.digits
@@ -29,20 +48,13 @@ async def generate_sub_key(k: int):
     return sub_key
 
 
-async def save_file(recived_file: Document, context: ContextTypes.DEFAULT_TYPE):
-    file = await context.bot.get_file(recived_file)
-    saved_file_path = LESSONS_DIR / recived_file.file_name
-    await file.download_to_drive(saved_file_path)
-    return saved_file_path
-
-
-async def get_lecturer_by_phone(phone_number):
+async def get_lecturer_and_error_by_phone(phone_number):
     try:
         lecturer = await get_user_by_phone_number(phone_number)
     except UserError:
         return None, f"Нет пользователя с номером {phone_number}"
     else:
-        if lecturer.status != LECTURER_STR:
+        if lecturer.status != LECTURER_STATUS:
             return (
                 None,
                 f"Пользователь с номером {phone_number} не является преподавателем",
@@ -51,22 +63,53 @@ async def get_lecturer_by_phone(phone_number):
     return lecturer, None
 
 
+async def process_insert_lesson_into_db(
+    recieved_file: Document,
+    user_tg_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    file_path = await get_saved_lessonfile_path(recieved_file, context)
+
+    lessons = get_lessons_from_file(file_path)
+    os.remove(file_path)
+    if lessons is None or not lessons:
+        await send_error_message(
+            user_tg_id,
+            context,
+            err="Неверно заполнен файл. Возможно файл пустой. Попробуй с другим файлом.",
+        )
+        return AdminState.GET_CSV_FILE
+    errors_after_inserting_lessons = await insert_lessons_into_db(lessons)
+
+    if errors_after_inserting_lessons:
+        await context.bot.send_message(
+            user_tg_id,
+            "\n".join([row[0] for row in errors_after_inserting_lessons]),
+        )
+
+    err_lesson = "\n".join([row[-1] for row in errors_after_inserting_lessons])
+    answer = f"Все уроки, кроме\n<b>{err_lesson}</b>\nбыли добавлены в общий список"
+    await context.bot.send_message(
+        chat_id=user_tg_id,
+        text=answer,
+        reply_markup=KB_ADMIN_COMMAND,
+        parse_mode=ParseMode.HTML,
+    )
+    return AdminState.CHOOSING
+
+
 async def insert_lessons_into_db(lessons: list[TransientLesson]):
     res_err = []
+
     for lesson in lessons:
-        lecturer, message = await get_lecturer_by_phone(lesson.lecturer_phone)
+        lecturer, message = await get_lecturer_and_error_by_phone(lesson.lecturer_phone)
         if lecturer is None:
             res_err.append((message, lesson.title))
             continue
 
-        params = lesson.to_dict()
-        del params["lecturer_phone"]
-        params["lecturer_id"] = lecturer.id
+        params = make_lesson_params(lesson, lecuturer_id=lecturer.id)
         # TODO Возможно стоит переписать под executemany чтобы был только один запрос
-        await execute(
-            """INSERT INTO lesson (title, time_start, num_of_seats, lecturer_id) VALUES (:title, :time_start,:num_of_seats, :lecturer_id)""",
-            params,
-        )
+        await insert_lesson_in_db(params)
     return res_err
 
 
@@ -80,7 +123,7 @@ async def update_user_to_lecturer(user_id):
         "status=:status",
         "id=:user_id",
         {
-            "status": LECTURER_STR,
+            "status": LECTURER_STATUS,
             "user_id": user_id,
         },
     )

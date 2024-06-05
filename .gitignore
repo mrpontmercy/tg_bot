@@ -165,5 +165,6 @@ cython_debug/
 README.md
 TODO.md
 db.sql
-test1.py
+
 course_files/
+test_package/

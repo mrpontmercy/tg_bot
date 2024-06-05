@@ -1,17 +1,23 @@
 import re
-from telegram import Update
+
+from telegram import Document
 from telegram.constants import ParseMode
-from telegram.ext import ContextTypes, ConversationHandler
-from db import execute, fetch_all, get_db
-from handlers.begin import get_current_keyboard
+from telegram.ext import ContextTypes
+
+from db import fetch_all, get_db
 from services.db import execute_delete, execute_update, get_users_by_id
+from services.lesson import get_lessons_from_file
 from services.reply_text import send_error_message
 from services.states import EditLessonState
 from services.templates import render_template
-from services.utils import Lesson
+from services.utils import Lesson, TransientLesson, DATE_TIME_PATTERN
 
 
-datetime_pattern = r"^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01]) (0?[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$"
+async def insert_lessons_into_db(
+    recieved_file: Document, lessons: list[TransientLesson]
+):
+    path_to_file_lesson = ("тут путь добавить",)
+    lessons_from_file = await get_lessons_from_file()
 
 
 async def process_cancel_lesson_by_lecturer(
@@ -65,6 +71,7 @@ async def process_delete_lesson_db(params_lesson_id):
     await execute_delete(
         "lesson", "id=:lesson_id", params=params_lesson_id, autocommit=False
     )
+    await (await get_db()).commit()
 
 
 async def _notify_lesson_users(
@@ -109,9 +116,10 @@ async def change_lesson_title(
     )
 
     all_users_of_lesson = await get_all_users_of_lesson({"lesson_id": curr_lesson.id})
-    await _notify_lesson_users(
-        "edit_title_lesson.jinja", data, all_users_of_lesson, context
-    )
+    if all_users_of_lesson is not None:
+        await _notify_lesson_users(
+            "edit_title_lesson.jinja", data, all_users_of_lesson, context
+        )
     return None
 
 
@@ -157,6 +165,6 @@ async def change_lesson_time_start(
 
 
 def _validate_datetime(message: str):
-    if re.fullmatch(datetime_pattern, message):
+    if re.fullmatch(DATE_TIME_PATTERN, message):
         return True
     return False

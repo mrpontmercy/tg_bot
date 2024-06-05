@@ -7,18 +7,15 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
 from config import (
-    CALLBACK_LECTURER_LESSON_PREFIX,
     CALLBACK_LESSON_PREFIX,
     CALLBACK_USER_LESSON_PREFIX,
-    LECTURER_STR,
 )
 
 from handlers.begin import get_current_keyboard
-from services.db import get_lecturer_upcomming_lessons, get_user
+from services.db import get_user_by_tg_id
 from services.exceptions import LessonError, SubscriptionError, UserError
 from services.kb import (
     get_flip_with_cancel_INLINEKB,
-    get_flipKB_with_edit,
     get_lesson_INLINEKB,
 )
 from services.lesson import (
@@ -47,7 +44,7 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     user_tg_id = update.effective_user.id
 
-    user = await get_user(user_tg_id)
+    user = await get_user_by_tg_id(user_tg_id)
 
     context.user_data["curr_user_tg_id"] = user.telegram_id
 
@@ -57,6 +54,7 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = await get_current_keyboard(update)
         await context.bot.send_message(user_tg_id, str(e), reply_markup=kb)
         return StartHandlerState.START
+
     first_lesson: Lesson = lessons_by_user[0]
     context.user_data["curr_lesson"] = first_lesson
     kb = get_flip_with_cancel_INLINEKB(
@@ -80,7 +78,7 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_tg_id = update.effective_user.id
 
-    user = await get_user(user_tg_id)
+    user = await get_user_by_tg_id(user_tg_id)
 
     context.user_data["curr_user_tg_id"] = user.telegram_id
 
@@ -104,34 +102,6 @@ async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # func = user_required(state)(lecturer_required(state)(func))
-@user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
-async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_tg_id = update.effective_user.id
-
-    lecturer = await get_user(telegram_id=user_tg_id)
-
-    context.user_data["curr_user_tg_id"] = lecturer.telegram_id
-    lessons = await get_lecturer_upcomming_lessons(lecturer.id)
-
-    if lessons is None:
-        await send_error_message(user_tg_id, context, err="У вас ещё нет занятий.")
-        return StartHandlerState.START
-    context.user_data["curr_lesson"] = lessons[0]
-    kb = get_flipKB_with_edit(
-        0,
-        len(lessons),
-        CALLBACK_LECTURER_LESSON_PREFIX,
-    )
-    await context.bot.send_message(
-        user_tg_id,
-        text=render_template("lesson.jinja", data=lessons[0].to_dict_lesson_info()),
-        reply_markup=kb,
-        parse_mode=ParseMode.HTML,
-    )
-    return StartHandlerState.START
-
-
 @user_required(StartHandlerState.START)
 @lecturer_required(StartHandlerState.START)
 async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -164,7 +134,7 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return StartHandlerState.START
 
     try:
-        user = await get_user(user_tg_id)
+        user = await get_user_by_tg_id(user_tg_id)
         await update_info_after_cancel_lesson(lesson, user)
     except (SubscriptionError, UserError) as e:
         await send_error_message(user_tg_id, context, err=str(e))
@@ -176,30 +146,6 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return StartHandlerState.START
     await update.callback_query.edit_message_text("Занятие успешно отменено!")
-    return StartHandlerState.START
-
-
-@user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
-async def lecturer_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lessons, state = await get_lessons_button(
-        update,
-        context,
-        get_lecturer_upcomming_lessons,
-        StartHandlerState.START,
-    )
-
-    if lessons is None:
-        return state
-
-    kb_func = get_flipKB_with_edit
-    await _lessons_button(
-        lessons=lessons,
-        kb_func=kb_func,
-        pattern=CALLBACK_LECTURER_LESSON_PREFIX,
-        update=update,
-        context=context,
-    )
     return StartHandlerState.START
 
 
@@ -279,7 +225,7 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     user_tg_id = update.effective_user.id
     try:
-        user = await get_user(user_tg_id)
+        user = await get_user_by_tg_id(user_tg_id)
     except UserError:
         await query.edit_message_text(
             "Что-то пошло не так. Возможная ошибка\n\n" + str(e)

@@ -9,7 +9,7 @@ from services.exceptions import (
     SubscriptionError,
     UserError,
 )
-from services.db import get_user
+from services.db import get_user_by_tg_id
 from services.lesson import get_user_subscription
 from services.reply_text import send_error_message
 from services.states import StartHandlerState
@@ -23,7 +23,7 @@ async def activate_key_command(
 ):
     user_tg_id = update.effective_user.id
     try:
-        user = await get_user(update.effective_user.id)
+        user = await get_user_by_tg_id(update.effective_user.id)
     except UserError as e:
         logger.exception(e)
         await send_error_message(user_tg_id, context, err=str(e))
@@ -51,7 +51,7 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         return ConversationHandler.END
     del context.user_data["curr_user_tg_id"]
     try:
-        user = await get_user(user_tg_id)
+        user = await get_user_by_tg_id(user_tg_id)
         final_message = await activate_key(sub_key, user)
     except (InvalidSubKey, UserError) as e:
         logger.exception(e)
@@ -70,7 +70,7 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
 async def show_number_of_remaining_classes_on_subscription(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-    user = await get_user(update.message.from_user.id)
+    user = await get_user_by_tg_id(update.message.from_user.id)
     try:
         subscription = await get_user_subscription(user_db_id=user.id)
     except SubscriptionError as e:

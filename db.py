@@ -33,12 +33,24 @@ async def fetch_all(sql, params: Iterable[Any] | None = None) -> list[dict] | li
 async def fetch_one(sql, params: Iterable[Any] | None = None) -> dict | None:
     cursor = await _get_cursor(sql, params)
     row_ = await cursor.fetchone()
-    if not row_:
+    if row_ is None:
         await cursor.close()
         return None
     row = _get_result_with_column_names(cursor, row_)
     await cursor.close()
     return row
+
+
+async def executemany(
+    sql, params: Iterable[Iterable[Any]] | None = None, *, autocommit: bool = True
+) -> None:
+    db = await get_db()
+    args = (sql, params)
+
+    await db.executemany(*args)
+
+    if autocommit:
+        await db.commit()
 
 
 async def execute(

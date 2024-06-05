@@ -1,7 +1,7 @@
 import logging
 
 from telegram.ext import ContextTypes
-from services.db import get_user, get_user_by_id
+from services.db import get_user_by_tg_id, get_user_by_id
 from services.exceptions import UserError
 from services.templates import render_template
 from services.utils import Lesson

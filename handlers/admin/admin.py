@@ -1,3 +1,4 @@
+from functools import partial
 import logging
 import os
 import sqlite3
@@ -7,14 +8,14 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
 
-from config import CALLBACK_SUB_PREFIX
+from config import ADMIN_STATUS, CALLBACK_SUB_PREFIX
 from db import execute
 from handlers.begin import start_command
 from services.admin import (
     delete_subscription,
     generate_sub_key,
     insert_lessons_into_db,
-    save_file,
+    process_insert_lesson_into_db,
     update_user_to_lecturer,
     validate_num_of_classes,
     validate_phone_number,
@@ -27,10 +28,11 @@ from services.kb import (
     get_flip_keyboard,
 )
 from services.lesson import get_lessons_from_file
+from services.register import user_required
 from services.reply_text import send_error_message
 from services.states import AdminState
 from services.templates import render_template
-from services.utils import Subscription
+from services.utils import Subscription, get_saved_lessonfile_path
 
 
 unity = string.ascii_letters + string.digits
@@ -89,37 +91,19 @@ async def update_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return AdminState.GET_CSV_FILE
 
 
-async def insert_into_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    saved_file_path = await save_file(update.message.document, context)
-
-    lessons = get_lessons_from_file(saved_file_path)
-    if lessons is None:
-        await send_error_message(
-            update.effective_user.id,
-            context,
-            err="Неверно заполнен файл. Попробуй с другим файлом.",
-        )
-        os.remove(saved_file_path)
-        return AdminState.GET_CSV_FILE
-
-    errors_after_inserting_lessons = await insert_lessons_into_db(lessons)
-
-    if errors_after_inserting_lessons:
+async def insert_lesson_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rec_document = update.message.document
+    user_tg_id = update.effective_user.id
+    state = await process_insert_lesson_into_db(rec_document, user_tg_id, context)
+    if state is None:
         await context.bot.send_message(
-            update.message.from_user.id,
-            "\n".join([row[0] for row in errors_after_inserting_lessons]),
+            chat_id=user_tg_id,
+            text="Что-то пошло не так",
+            reply_markup=KB_ADMIN_COMMAND,
+            parse_mode=ParseMode.HTML,
         )
-
-    os.remove(saved_file_path)
-    err_lesson = "\n".join([row[-1] for row in errors_after_inserting_lessons])
-    answer = f"Все уроки, кроме\n<b>{err_lesson}</b>\n были добавлены в общий список"
-    await context.bot.send_message(
-        chat_id=update.effective_message.chat_id,
-        text=answer,
-        reply_markup=KB_ADMIN_COMMAND,
-        parse_mode=ParseMode.HTML,
-    )
-    return AdminState.CHOOSING
+        return AdminState.CHOOSING
+    return state
 
 
 async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE):
