@@ -45,8 +45,9 @@ async def insert_user(params: Iterable[Any]):
 
 
 def _validate_user(user_info: list[str]) -> User:
+    print(f"{user_info=}")
     if len(user_info) != 6:
-        raise ValidationUserError
+        raise ValidationUserError("Введены не все данные")
 
     f_name = user_info[2]
     if not re.fullmatch(FS_NAME_PATTERN, f_name):

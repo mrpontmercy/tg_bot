@@ -6,27 +6,24 @@ import string
 from telegram import Document
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-from config import ADMIN_STATUS, LECTURER_STATUS
-from db import execute, fetch_all
+from config import LECTURER_STATUS
+from db import fetch_all
 from services.db import (
     execute_delete,
     execute_update,
     get_user_by_phone_number,
-    get_users_by_id,
     insert_lesson_in_db,
 )
 from services.exceptions import InputMessageError, SubscriptionError, UserError
 from services.kb import KB_ADMIN_COMMAND
 from services.lesson import get_lessons_from_file
 from services.reply_text import send_error_message
-from services.states import AdminState
 from services.utils import (
     PHONE_NUMBER_PATTERN,
     Subscription,
     TransientLesson,
     get_saved_lessonfile_path,
     make_lesson_params,
-    make_lessons_params,
 )
 
 
@@ -37,12 +34,12 @@ async def generate_sub_key(k: int):
     try:
         subs = await get_all_subs()
     except SubscriptionError as e:
-        pass
-    else:
         subs = []
+        pass
+
     while True:
         sub_key = "".join(random.choices(unity, k=k))
-        if not any([True if sub_key in el else False for el in subs]):
+        if not any([True if sub_key == el.sub_key else False for el in subs]):
             break
 
     return sub_key
@@ -158,7 +155,7 @@ async def get_all_subs():
 
     subs = await fetch_all(r_sql)
     if not subs:
-        raise SubscriptionError("Не удалось найти абонементы!")
+        raise SubscriptionError("Не удалось найти ни одного абонимента!")
 
     result = []
     for sub in subs:

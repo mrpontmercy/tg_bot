@@ -36,8 +36,8 @@ from config import (
 )
 
 
-@user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
+@user_required(StartHandlerState.SELECTING_ACTION)
+@lecturer_required(StartHandlerState.SELECTING_ACTION)
 async def send_file_lessons_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_tg_id = update.effective_user.id
     await context.bot.send_message(
@@ -47,8 +47,8 @@ async def send_file_lessons_lecturer(update: Update, context: ContextTypes.DEFAU
     return StartHandlerState.SEND_FILE_LESSONS_LECTURER
 
 
-@user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
+@user_required(StartHandlerState.SELECTING_ACTION)
+@lecturer_required(StartHandlerState.SELECTING_ACTION)
 async def insert_lessons_from_file_lecturer(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
@@ -80,7 +80,7 @@ async def insert_lessons_from_file_lecturer(
 
     await insert_lessons_into_db(params)
     await context.bot.send_message(user_tg_id, "Уроки успешно добавлены")
-    return StartHandlerState.START
+    return StartHandlerState.SELECTING_ACTION
 
 
 @user_required(EditLessonState.CHOOSE_OPTION)
@@ -110,7 +110,7 @@ async def cancel_lesson_by_lecturer(update: Update, context: ContextTypes.DEFAUL
     return EditLessonState.CHOOSE_OPTION
 
 
-@user_required(StartHandlerState.START)
+@user_required(StartHandlerState.SELECTING_ACTION)
 @lecturer_required(EditLessonState.CHOOSE_OPTION)
 async def begin_edit_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -166,7 +166,7 @@ async def enter_time_start_lesson(update: Update, context: ContextTypes.DEFAULT_
     return EditLessonState.EDIT_TIMESTART
 
 
-@user_required(StartHandlerState.START)
+@user_required(StartHandlerState.SELECTING_ACTION)
 @lecturer_required(EditLessonState.CHOOSE_OPTION)
 async def enter_num_of_seats_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
@@ -180,6 +180,8 @@ async def enter_num_of_seats_lesson(update: Update, context: ContextTypes.DEFAUL
 @lecturer_required(ConversationHandler.END)
 async def edit_title_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_tg_id = update.effective_user.id
+    callback_query = update.callback_query
+    await callback_query.answer()
 
     state = await change_lesson_title(user_tg_id, update.message.text, context)
 
@@ -228,8 +230,8 @@ async def edit_num_of_seats_lesson(update: Update, context: ContextTypes.DEFAULT
     return EditLessonState.CHOOSE_OPTION
 
 
-@user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
+@user_required(StartHandlerState.SELECTING_ACTION)
+@lecturer_required(StartHandlerState.SELECTING_ACTION)
 async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_tg_id = update.effective_user.id
 
@@ -240,7 +242,7 @@ async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TY
         lessons = await get_lecturer_upcomming_lessons(lecturer.id)
     except LessonError as e:
         await send_error_message(user_tg_id, context, err=str(e))
-        return StartHandlerState.START
+        return StartHandlerState.SELECTING_ACTION
 
     context.user_data["curr_lesson"] = lessons[0]
     kb = get_flipKB_with_edit(
@@ -254,17 +256,17 @@ async def show_lecturer_lessons(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
-    return StartHandlerState.START
+    return StartHandlerState.SELECTING_ACTION
 
 
-@user_required(StartHandlerState.START)
-@lecturer_required(StartHandlerState.START)
+@user_required(StartHandlerState.SELECTING_ACTION)
+@lecturer_required(StartHandlerState.SELECTING_ACTION)
 async def lecturer_lessons_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lessons, state = await get_lessons_button(
         update,
         context,
         get_lecturer_upcomming_lessons,
-        StartHandlerState.START,
+        StartHandlerState.SELECTING_ACTION,
     )
 
     if lessons is None:
@@ -278,4 +280,4 @@ async def lecturer_lessons_button(update: Update, context: ContextTypes.DEFAULT_
         update=update,
         context=context,
     )
-    return StartHandlerState.START
+    return StartHandlerState.SELECTING_ACTION

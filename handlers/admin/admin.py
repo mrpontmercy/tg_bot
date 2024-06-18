@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import string
 
-from telegram import Update
+from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
 
@@ -22,22 +22,26 @@ from services.db import get_user_by_phone_number
 from services.exceptions import InputMessageError, SubscriptionError, UserError
 from services.kb import (
     KB_ADMIN_COMMAND,
-    get_flip_keyboard,
+    get_back_kb,
+    get_flip_delete_back_keyboard,
+    get_retry_or_back_keyboard,
 )
 from services.reply_text import send_error_message
-from services.response import send_message
-from services.states import AdminState
+from services.response import edit_callbackquery, send_message
+from services.states import END, AdminState, FlipKBState
 from services.templates import render_template
-from services.utils import Subscription
+from services.utils import Subscription, add_start_over
 
 
 unity = string.ascii_letters + string.digits
 
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     kb = KB_ADMIN_COMMAND
-    tg_id = update.effective_user.id
-    await send_message(tg_id, "admin.jinja", context, kb)
+    await edit_callbackquery(query, "admin.jinja", keyboard=kb)
     return AdminState.CHOOSING
 
 
@@ -105,18 +109,19 @@ async def insert_lesson_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.effective_message
+    query = update.callback_query
+    await query.answer()
+    kb = KB_ADMIN_COMMAND
     try:
         subs: list[Subscription] = await get_available_subs()
     except SubscriptionError as e:
         logging.getLogger(__name__).exception(e)
         await send_error_message(update.effective_user.id, context, err=str(e))
         return AdminState.CHOOSING
-    kb = get_flip_keyboard(0, len(subs), CALLBACK_SUB_PREFIX)
+    kb = get_flip_delete_back_keyboard(0, len(subs), CALLBACK_SUB_PREFIX)
     sub = subs[0]
     context.user_data["sub_id"] = sub.id
-    await context.bot.send_message(
-        update.effective_user.id,
+    await query.edit_message_text(
         text=render_template(
             "subs.jinja",
             data={"sub_key": sub.sub_key, "num_of_classes": sub.num_of_classes},
@@ -124,20 +129,22 @@ async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup=kb,
         parse_mode=ParseMode.HTML,
     )
+    return FlipKBState.START
 
 
 async def subs_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    back_kb = get_back_kb(END)
     try:
         subs = await get_available_subs()
     except SubscriptionError as e:
-        logging.getLogger(__name__).exception(e)
-        await query.edit_message_text(
-            "Что-то пошло не так. Возможная ошибка\n\n" + str(e)
-        )
-        return AdminState.CHOOSING
+        await edit_callbackquery(query, "error.jinja", err=str(e), keyboard=back_kb)
+        # await query.edit_message_text(
+        #     "Что-то пошло не так. Возможная ошибка\n\n" + str(e)
+        # )
+        return FlipKBState.START
 
     current_index = int(query.data[len(CALLBACK_SUB_PREFIX) :])
     sub = subs[current_index]
@@ -151,21 +158,28 @@ async def subs_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             },
         ),
         parse_mode=ParseMode.HTML,
-        reply_markup=get_flip_keyboard(current_index, len(subs), CALLBACK_SUB_PREFIX),
+        reply_markup=get_flip_delete_back_keyboard(
+            current_index, len(subs), CALLBACK_SUB_PREFIX
+        ),
     )
-    return AdminState.CHOOSING
+    return FlipKBState.START
 
 
 async def generate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     sub_key = await generate_sub_key(20)
 
     context.user_data["sub_key"] = sub_key
     answer = f"Отлично, теперь введите количество уроков для подписки!"
-    await update.effective_user.send_message(answer, reply_markup=KB_ADMIN_COMMAND)
-    return AdminState.NUM_OF_CLASSES
+    await update.effective_user.send_message(answer)
+    return AdminState.GET_NUM_OF_CLASSES
 
 
+@add_start_over
 async def make_new_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    kb = get_retry_or_back_keyboard(AdminState.GET_NUM_OF_CLASSES)
     try:
         num_of_classes = validate_num_of_classes(update.message.text)
     except InputMessageError as e:
@@ -173,7 +187,7 @@ async def make_new_subscription(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(
             "Что-то пошло не так. Возможная ошибка:\n\n" + str(e)
         )
-        return AdminState.NUM_OF_CLASSES
+        return AdminState.GET_NUM_OF_CLASSES
     sub_key = context.user_data["sub_key"]
     del context.user_data["sub_key"]
     await execute(
@@ -218,3 +232,9 @@ async def remove_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.callback_query.edit_message_text("Абонемент удален!")
     return AdminState.CHOOSING
     # await update.message.reply_text("Подписка удалена!")
+
+
+async def end_admin_conv(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["START_OVER"] = True
+    await start_command(update, context)
+    return END

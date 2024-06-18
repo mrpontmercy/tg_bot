@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import wraps
 import re
 from typing import Any
 import uuid
@@ -164,3 +165,12 @@ async def get_saved_lessonfile_path(
     saved_file_path = LESSONS_DIR / new_file_name
     await file.download_to_drive(saved_file_path)
     return saved_file_path
+
+
+def add_start_over(func):
+    @wraps(func)
+    async def wrapper(update, context):
+        context.user_data["START_OVER"] = True
+        return await func(update, context)
+
+    return wrapper

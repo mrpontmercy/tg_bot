@@ -9,46 +9,170 @@ from config import (
     CALLBACK_DATA_EDIT_TITLE_LESSON,
     CALLBACK_DATA_SUBSCRIBE,
 )
-
-KB_START_COMMAND = ReplyKeyboardMarkup(
-    [
-        ["Регистрация", "Активировать ключ"],
-        ["Доступные занятия", "Мои занятия"],
-        ["Отменить"],
-    ],
-    one_time_keyboard=False,
-    input_field_placeholder="Что вы хотите сделать?",
+from services.states import (
+    END,
+    AdminState,
+    EditLessonState,
+    RegisterState,
+    StartHandlerState,
 )
 
-KB_START_COMMAND_ADMIN = ReplyKeyboardMarkup(
+
+def get_back_kb(back_state):
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Назад", callback_data=str(back_state))]]
+    )
+
+    return keyboard
+
+
+def get_retry_or_back_keyboard(retry_state):
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Попробовать снова", callback_data=str(retry_state)
+                ),
+                InlineKeyboardButton("Назад", callback_data=str(END)),
+            ]
+        ]
+    )
+    return keyboard
+
+
+KB_START_COMMAND = InlineKeyboardMarkup(
     [
-        ["Регистрация", "Активировать ключ"],
-        ["Доступные занятия", "Мои занятия", "Админ панель"],
-        ["Отменить"],
+        [
+            InlineKeyboardButton(
+                "Регистрация", callback_data=str(RegisterState.START_REGISTER)
+            ),
+            InlineKeyboardButton(
+                "Активировать ключ",
+                callback_data=str(StartHandlerState.START_ACTIVATE_KEY),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "Доступные занятия",
+                callback_data=str(StartHandlerState.SHOW_UPCOMING_LESSONS),
+            ),
+            InlineKeyboardButton(
+                "Мои занятия", callback_data=str(StartHandlerState.SHOW_MY_LESSONS)
+            ),
+        ],
+        [InlineKeyboardButton("Отменить", callback_data=str(END))],
     ],
-    one_time_keyboard=False,
-    input_field_placeholder="Что вы хотите сделать?",
 )
 
-KB_START_COMMAND_REGISTERED = ReplyKeyboardMarkup(
+KB_START_COMMAND_ADMIN = InlineKeyboardMarkup(
     [
-        ["Активировать ключ", "Оставшееся количество занятий"],
-        ["Доступные занятия", "Мои занятия"],
-        ["Отменить"],
+        [
+            InlineKeyboardButton(
+                "Регистрация", callback_data=str(RegisterState.START_REGISTER)
+            ),
+            InlineKeyboardButton(
+                "Активировать ключ",
+                callback_data=str(StartHandlerState.START_ACTIVATE_KEY),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "Доступные занятия",
+                callback_data=str(StartHandlerState.SHOW_UPCOMING_LESSONS),
+            ),
+            InlineKeyboardButton(
+                "Мои занятия", callback_data=str(StartHandlerState.SHOW_MY_LESSONS)
+            ),
+            InlineKeyboardButton(
+                "Админ панель", callback_data=str(AdminState.START_ADMIN)
+            ),
+        ],
+        [InlineKeyboardButton("Отменить", callback_data=str(END))],
     ],
-    one_time_keyboard=False,
-    input_field_placeholder="Что вы хотите сделать?",
 )
 
-KB_START_COMMAND_REGISTERED_ADMIN = ReplyKeyboardMarkup(
+# KB_START_COMMAND_ADMIN = ReplyKeyboardMarkup(
+#     [
+#         ["Регистрация", "Активировать ключ"],
+#         ["Доступные занятия", "Мои занятия", "Админ панель"],
+#         ["Отменить"],
+#     ],
+#     one_time_keyboard=False,
+#     input_field_placeholder="Что вы хотите сделать?",
+# )
+
+KB_START_COMMAND_REGISTERED = InlineKeyboardMarkup(
     [
-        ["Активировать ключ", "Оставшееся количество занятий"],
-        ["Доступные занятия", "Мои занятия", "Админ панель"],
-        ["Отменить"],
-    ],
-    one_time_keyboard=False,
-    input_field_placeholder="Что вы хотите сделать?",
+        [
+            InlineKeyboardButton(
+                "Активировать ключ",
+                callback_data=str(StartHandlerState.START_ACTIVATE_KEY),
+            ),
+            InlineKeyboardButton(
+                "Оставшееся количество занятий",
+                callback_data=str(StartHandlerState.SHOW_REMAINING_CLASSES),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "Доступные занятия",
+                callback_data=str(StartHandlerState.SHOW_UPCOMING_LESSONS),
+            ),
+            InlineKeyboardButton(
+                "Мои занятия", callback_data=str(StartHandlerState.SHOW_MY_LESSONS)
+            ),
+        ],
+        [InlineKeyboardButton("Отменить", callback_data=str(END))],
+    ]
 )
+
+KB_START_COMMAND_REGISTERED_ADMIN = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton(
+                "Активировать ключ",
+                callback_data=str(StartHandlerState.START_ACTIVATE_KEY),
+            ),
+            InlineKeyboardButton(
+                "Оставшееся количество занятий",
+                callback_data=str(StartHandlerState.SHOW_REMAINING_CLASSES),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "Доступные занятия",
+                callback_data=str(StartHandlerState.SHOW_UPCOMING_LESSONS),
+            ),
+            InlineKeyboardButton(
+                "Мои занятия", callback_data=str(StartHandlerState.SHOW_MY_LESSONS)
+            ),
+            InlineKeyboardButton(
+                "Админ панель", callback_data=str(AdminState.START_ADMIN)
+            ),
+        ],
+        [InlineKeyboardButton("Отменить", callback_data=str(END))],
+    ]
+)
+
+# KB_START_COMMAND_REGISTERED = ReplyKeyboardMarkup(
+#     [
+#         ["Активировать ключ", "Оставшееся количество занятий"],
+#         ["Доступные занятия", "Мои занятия"],
+#         ["Отменить"],
+#     ],
+#     one_time_keyboard=False,
+#     input_field_placeholder="Что вы хотите сделать?",
+# )
+
+# KB_START_COMMAND_REGISTERED_ADMIN = ReplyKeyboardMarkup(
+#     [
+#         ["Активировать ключ", "Оставшееся количество занятий"],
+#         ["Доступные занятия", "Мои занятия", "Админ панель"],
+#         ["Отменить"],
+#     ],
+#     one_time_keyboard=False,
+#     input_field_placeholder="Что вы хотите сделать?",
+# )
 
 KB_START_COMMAND_REGISTERED_LECTURER = ReplyKeyboardMarkup(
     [
@@ -68,14 +192,36 @@ KB_START_COMMAND_REGISTERED_LECTURER_ADMIN = ReplyKeyboardMarkup(
     input_field_placeholder="Что вы хотите сделать?",
 )
 
-KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
+KB_ADMIN_COMMAND = InlineKeyboardMarkup(
     [
-        ["Создать ключ", "Доступные ключи"],
-        ["Обновить уроки", "Добавить преподователя"],
-        ["Назад"],
+        [
+            InlineKeyboardButton(
+                "Создать ключ", callback_data=str(AdminState.GENERATE_SUB)
+            ),
+            InlineKeyboardButton(
+                "Доступные ключи", callback_data=str(AdminState.LIST_AVAILABLE_SUBS)
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "Обновить уроки", callback_data=str(AdminState.UPDATE_LESSONS)
+            ),
+            InlineKeyboardButton(
+                "Добавить преподователя", callback_data=str(AdminState.ADD_LECTURER)
+            ),
+        ],
+        [InlineKeyboardButton("Назад", callback_data=str(END))],
     ],
-    one_time_keyboard=False,
 )
+
+# KB_ADMIN_COMMAND = ReplyKeyboardMarkup(
+#     [
+#         ["Создать ключ", "Доступные ключи"],
+#         ["Обновить уроки", "Добавить преподователя"],
+#         ["Назад"],
+#     ],
+#     one_time_keyboard=False,
+# )
 
 KB_LECTURER_EDIT_LESSON = ReplyKeyboardMarkup(
     [
@@ -89,6 +235,27 @@ KB_LECTURER_EDIT_LESSON = ReplyKeyboardMarkup(
         ],
     ]
 )
+
+
+def get_keyboard_edit_lesson():
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Изменить заголовок", callback_data=str(EditLessonState.EDIT_TITLE)
+                ),
+                InlineKeyboardButton(
+                    "Изменить дату", callback_data=str(EditLessonState.EDIT_TIMESTART)
+                ),
+                InlineKeyboardButton(
+                    "Изменить количество доступных мест",
+                    callback_data=str(EditLessonState.EDIT_NUM_OF_SEATS),
+                ),
+            ],
+            [InlineKeyboardButton("Завершить", callback_data=str(END))],
+        ]
+    )
+    return keyboard
 
 
 def get_edit_lesson_kb(prefix):
@@ -129,7 +296,7 @@ def get_flipKB_with_edit(current_lesson_index, number_of_lessons, prefix):
     keyboard.append(
         [
             InlineKeyboardButton(
-                "Изменить", callback_data=f"{prefix}{CALLBACK_DATA_EDIT_LESSON}"
+                "Изменить", callback_data=str(EditLessonState.CHOOSE_OPTION)
             ),
             InlineKeyboardButton(
                 "Удалить",
@@ -154,7 +321,7 @@ def get_flip_with_cancel_INLINEKB(
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_flip_keyboard(current_lesson_index, number_of_lessons, prefix):
+def get_flip_delete_back_keyboard(current_lesson_index, number_of_lessons, prefix):
     keyboard = _get_flip_keyboard(current_lesson_index, number_of_lessons, prefix)
     keyboard.append(
         [
@@ -163,6 +330,7 @@ def get_flip_keyboard(current_lesson_index, number_of_lessons, prefix):
             )
         ]
     )
+    keyboard.append([InlineKeyboardButton(text="Назад", callback_data=f"{END}")])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -185,6 +353,7 @@ def get_lesson_INLINEKB(
             )
         ]
     )
+    keyboard.append([InlineKeyboardButton("Назад", callback_data=str(END))])
     return InlineKeyboardMarkup(keyboard)
 
 

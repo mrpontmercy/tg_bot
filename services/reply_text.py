@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import CallbackQuery, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -10,9 +10,23 @@ async def send_error_message(
     context: ContextTypes.DEFAULT_TYPE,
     data: dict | None = None,
     err: str | None = None,
+    keyboard: InlineKeyboardMarkup | None = None,
 ):
     await context.bot.send_message(
         user_tg_id,
         render_template("error.jinja", err=err, data=data),
+        reply_markup=keyboard,
         parse_mode=ParseMode.HTML,
+    )
+
+
+async def send_error_query_message(
+    query: CallbackQuery,
+    data: dict | None = None,
+    err: str | None = None,
+):
+    await query.answer(
+        render_template("error.jinja", err=err, data=data),
+        # parse_mode=ParseMode.HTML,
+        show_alert=True,
     )

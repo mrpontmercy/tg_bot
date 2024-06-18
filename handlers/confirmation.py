@@ -59,7 +59,6 @@ async def confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_action_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    kb = context.user_data.get("kb", None)
     action = query.data.split("_")[0]
     if action == CALLBACK_DATA_SUBSCRIBE:
         await show_lessons(update, context)

@@ -1,24 +1,26 @@
 import logging
 import sqlite3
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler
-
-from all_strings import GREETINGS
-from handlers.start import get_current_keyboard
+from telegram.ext import ContextTypes
+from handlers.create_conv_handler import return_back_start
+from handlers.start import get_current_keyboard, start_command
 from services.register import (
     insert_user,
     validate_message,
 )
-
-REGISTER = 1
+from services.response import send_message
+from services.states import END, RegisterState, StartHandlerState
+from services.templates import render_template
 
 logger = logging.getLogger(__name__)
 
 
-async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_register_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
     chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id, GREETINGS)
-    return REGISTER
+    await send_message(chat_id, "register_example.jinja", context)
+
+    return RegisterState.REGISTER
 
 
 async def register_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -31,7 +33,7 @@ async def register_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(
             "Ошибка в данных, попробуйте снова. Возможная ошибка:\n\n" + str(e)
         )
-        return REGISTER
+        return RegisterState.REGISTER
 
     params = validated_message.to_dict()
     try:
@@ -42,10 +44,14 @@ async def register_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user.id,
             "Произошла ошибка.\nНачните регистрацию заново",
         )
-        return REGISTER
+        return RegisterState.REGISTER
     kb = await get_current_keyboard(update)
-    await context.bot.send_message(
-        user.id, "Вы успешно зарегестрировались!", reply_markup=kb
-    )
+    await context.bot.send_message(user.id, "Вы успешно зарегестрировались!")
+    return return_back_start(update, context)
 
-    return ConversationHandler.END
+
+# async def stop_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     await update.effective_user.send_message("Операция приостановлена!")
+#     context.user_data["START_OVER"] = True
+#     await start_command(update, context)
+#     return END
