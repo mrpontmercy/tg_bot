@@ -175,3 +175,21 @@ def add_start_over(func):
         return await func(update, context)
 
     return wrapper
+
+
+def add_message_info_into_context(func):
+    @wraps(func)
+    async def wrapper(update, context):
+        context.user_data["delete_message_info"] = (
+            update.effective_chat.id,
+            update.effective_message.id,
+        )
+        return await func(update, context)
+
+    return wrapper
+
+
+async def delete_message_from_context(context):
+    del_info = context.user_data.get("delete_message_info")
+    if del_info:
+        await context.bot.delete_message(del_info[0], del_info[1])

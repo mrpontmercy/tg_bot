@@ -16,29 +16,32 @@ from services.db import get_user_by_tg_id
 from services.lesson import get_user_subscription
 from services.reply_text import send_error_message, send_error_query_message
 from services.states import END, StartHandlerState
-from services.utils import add_start_over
+from services.utils import (
+    add_message_info_into_context,
+    add_start_over,
+    delete_message_from_context,
+)
 
 logger = logging.getLogger(__name__)
 
 
+@add_message_info_into_context
+@add_start_over
 async def start_activating_subkey(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
     query = update.callback_query
+    await query.answer()
     kb = get_back_kb(END)
-    user_tg_id = update.effective_user.id
     try:
         user = await get_user_by_tg_id(update.effective_user.id)
     except UserError as e:
-        logger.exception(e)
-        await send_error_query_message(query=query, err=str(e))
-        return
+        await edit_callbackquery(query=query, err=str(e), keyboard=kb)
+        return StartHandlerState.SHOWING
 
-    await query.answer()
-    await context.bot.send_message(user_tg_id, "Отправьте ключ абонимента!")
+    await query.edit_message_text("Отправьте ключ абонимента!")
     context.user_data["curr_user_tg_id"] = user.telegram_id
-    context.user_data["START_OVER"] = True
     return StartHandlerState.ACTIVATE_KEY
 
 
@@ -46,6 +49,7 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
     mess_args = update.message.text.split(" ")
     user_tg_id = context.user_data.get("curr_user_tg_id")
     kb = get_retry_or_back_keyboard(StartHandlerState.START_ACTIVATE_KEY, END)
+    await delete_message_from_context(context)
     try:
         args = validate_args(mess_args)
     except InputMessageError as e:
@@ -82,6 +86,7 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
 
 
 @add_start_over
+@add_message_info_into_context
 async def show_number_of_remaining_classes_on_subscription(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):

@@ -30,13 +30,19 @@ from services.reply_text import send_error_message
 from services.response import edit_callbackquery, send_message
 from services.states import END, AdminState, FlipKBState
 from services.templates import render_template
-from services.utils import Subscription, add_start_over
+from services.utils import (
+    Subscription,
+    add_message_info_into_context,
+    add_start_over,
+    delete_message_from_context,
+)
 
 
 unity = string.ascii_letters + string.digits
 
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
     query = update.callback_query
     await query.answer()
 
@@ -45,19 +51,29 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return AdminState.CHOOSING
 
 
+@add_message_info_into_context
 async def enter_lecturer_phone_number(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
     query = update.callback_query
     await query.answer()
     tg_id = update.effective_user.id
-    await context.bot.send_message(tg_id, "Введите номер телефона преподователя!")
+    await query.edit_message_text(
+        "Введите номер телефона преподователя!",
+        reply_markup=get_back_kb(AdminState.START_ADMIN),
+    )
     return AdminState.LECTURER_PHONE
 
 
 async def make_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = get_retry_or_back_keyboard(AdminState.ADD_LECTURER, AdminState.START_ADMIN)
     tg_id = update.effective_user.id
+
+    del_info = context.user_data.get("delete_message_info")
+    if del_info:
+        await context.bot.delete_message(del_info[0], del_info[1])
+        del context.user_data["delete_message_info"]
+
     try:
         phone_number = validate_phone_number(update.message.text)
     except InputMessageError as e:
@@ -88,10 +104,14 @@ async def make_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return AdminState.CHOOSING
 
 
+@add_message_info_into_context
 async def send_lessons_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_message.chat_id
-    await context.bot.send_message(
-        chat_id, "Отправьте файл с уроками установленной формы.\n"
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text(
+        "Отправьте файл с уроками установленной формы.\n",
+        reply_markup=get_back_kb(AdminState.START_ADMIN),
     )
     return AdminState.GET_CSV_FILE
 
@@ -99,10 +119,26 @@ async def send_lessons_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def insert_lesson_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rec_document = update.message.document
     user_tg_id = update.effective_user.id
-    if await process_insert_lesson_into_db(rec_document, user_tg_id, context):
-        return AdminState.CHOOSING
+    await delete_message_from_context(context)
+    err, answer = await process_insert_lesson_into_db(rec_document, user_tg_id, context)
+    if not err:
+        await send_error_message(
+            user_tg_id,
+            context,
+            err=answer,
+            keyboard=get_retry_or_back_keyboard(
+                AdminState.UPDATE_LESSONS, AdminState.START_ADMIN
+            ),
+        )
     else:
-        return AdminState.GET_CSV_FILE
+        await context.bot.send_message(
+            user_tg_id,
+            answer,
+            reply_markup=get_back_kb(AdminState.START_ADMIN),
+            parse_mode=ParseMode.HTML,
+        )
+
+    return AdminState.CHOOSING
 
     # if state is None:
     #     await context.bot.send_message(
@@ -171,6 +207,7 @@ async def subs_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return FlipKBState.START
 
 
+@add_message_info_into_context
 async def generate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -180,7 +217,6 @@ async def generate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     back_kb = get_back_kb(AdminState.START_ADMIN)
     answer = f"Отлично, теперь введите количество уроков для подписки!"
     await query.edit_message_text(answer, reply_markup=back_kb)
-
     return AdminState.GET_NUM_OF_CLASSES
 
 
@@ -188,7 +224,10 @@ async def generate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def make_new_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = get_retry_or_back_keyboard(AdminState.GENERATE_SUB, AdminState.START_ADMIN)
     tg_id = update.effective_user.id
-
+    del_info = context.user_data.get("delete_message_info")
+    if del_info:
+        await context.bot.delete_message(del_info[0], del_info[1])
+        del context.user_data["delete_message_info"]
     try:
         num_of_classes = validate_num_of_classes(update.message.text)
     except InputMessageError as e:

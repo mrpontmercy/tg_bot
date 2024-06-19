@@ -1,21 +1,18 @@
 import logging
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.ext import ContextTypes, filters
+from telegram import Update
+from telegram.ext import ContextTypes
 
-from config import LECTURER_STATUS
 from services.db import get_user_by_tg_id
 from services.exceptions import UserError
-from services.filters import ADMIN_FILTER, is_admin
+from services.filters import is_admin
 from services.kb import (
     KB_START_COMMAND,
     KB_START_COMMAND_ADMIN,
-    KB_START_COMMAND_REGISTERED,
     KB_START_COMMAND_REGISTERED_ADMIN,
-    KB_START_COMMAND_REGISTERED_LECTURER,
-    KB_START_COMMAND_REGISTERED_LECTURER_ADMIN,
 )
 from services.states import END, StartHandlerState
 from services.templates import render_template
+from services.utils import add_start_over
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,9 +64,13 @@ async def get_current_keyboard(update: Update):
     return kb
 
 
+@add_start_over
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    del_info = context.user_data.get("delete_message_info")
+    if del_info:
+        await context.bot.delete_message(del_info[0], del_info[1])
+        del context.user_data["delete_message_info"]
     await update.effective_user.send_message("Операция приостановлена!")
-    context.user_data["START_OVER"] = True
     await start_command(update, context)
     return END
 

@@ -70,12 +70,10 @@ async def process_insert_lesson_into_db(
     lessons = get_lessons_from_file(file_path)
     os.remove(file_path)
     if lessons is None or not lessons:
-        await send_error_message(
-            user_tg_id,
-            context,
-            err="Неверно заполнен файл. Возможно файл пустой. Попробуй с другим файлом.",
+        return (
+            False,
+            "Неверно заполнен файл. Возможно файл пустой. Попробуй с другим файлом.",
         )
-        return False
     errors_after_inserting_lessons = await insert_lessons_into_db(lessons)
 
     if errors_after_inserting_lessons:
@@ -84,8 +82,12 @@ async def process_insert_lesson_into_db(
             "\n".join([row[0] for row in errors_after_inserting_lessons]),
         )
 
-    err_lesson = "\n".join([row[-1] for row in errors_after_inserting_lessons])
-    answer = f"Все уроки, кроме\n<b>{err_lesson}</b>\nбыли добавлены в общий список"
+    err_lesson = ";\n".join([row[-1] for row in errors_after_inserting_lessons])
+    if len(lessons) == len(errors_after_inserting_lessons):
+        answer = "Ни одного урока не было добавлено!"
+    else:
+        answer = f"Все уроки, кроме\n<b>{err_lesson}</b>\nбыли добавлены в общий список"
+    return True, answer
     await context.bot.send_message(
         chat_id=user_tg_id,
         text=answer,

@@ -412,6 +412,7 @@ selection_handlers = [
 START_HANDLER = ConversationHandler(
     entry_points=[
         CommandHandler(["start"], start_command, filters=PRIVATE_CHAT_FILTER),
+        CallbackQueryHandler(start_command, pattern=f"^{END}_RETURN$"),
     ],
     states={
         StartHandlerState.SHOWING: [

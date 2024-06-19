@@ -46,19 +46,6 @@ KB_START_COMMAND = InlineKeyboardMarkup(
             InlineKeyboardButton(
                 "Регистрация", callback_data=str(RegisterState.START_REGISTER)
             ),
-            InlineKeyboardButton(
-                "Активировать ключ",
-                callback_data=str(StartHandlerState.START_ACTIVATE_KEY),
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                "Доступные занятия",
-                callback_data=str(StartHandlerState.SHOW_UPCOMING_LESSONS),
-            ),
-            InlineKeyboardButton(
-                "Мои занятия", callback_data=str(StartHandlerState.SHOW_MY_LESSONS)
-            ),
         ],
         [InlineKeyboardButton("Отменить", callback_data=str(END))],
     ],
