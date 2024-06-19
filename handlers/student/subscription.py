@@ -45,7 +45,7 @@ async def start_activating_subkey(
 async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mess_args = update.message.text.split(" ")
     user_tg_id = context.user_data.get("curr_user_tg_id")
-    kb = get_retry_or_back_keyboard(StartHandlerState.START_ACTIVATE_KEY)
+    kb = get_retry_or_back_keyboard(StartHandlerState.START_ACTIVATE_KEY, END)
     try:
         args = validate_args(mess_args)
     except InputMessageError as e:
@@ -75,7 +75,8 @@ async def register_sub_key_to_user(update: Update, context: ContextTypes.DEFAULT
         )
         return StartHandlerState.SHOWING
 
-    await update.effective_message.reply_text(final_message)
+    curr_kb = await get_current_keyboard(update)
+    await update.effective_message.reply_text(final_message, reply_markup=curr_kb)
 
     return StartHandlerState.SELECTING_ACTION
 
@@ -95,8 +96,7 @@ async def show_number_of_remaining_classes_on_subscription(
         await edit_callbackquery(query, "error.jinja", err=str(e), keyboard=kb)
         return StartHandlerState.SHOWING
 
-    await context.bot.send_message(
-        user.telegram_id,
+    await query.edit_message_text(
         f"У вас осталось {subscription.num_of_classes} занятий на абонименте",
         reply_markup=kb,
     )

@@ -12,6 +12,7 @@ from config import (
     CALLBACK_DATA_SUBSCRIBE,
     CALLBACK_LESSON_PREFIX,
     CALLBACK_SUB_PREFIX,
+    CALLBACK_USER_LESSON_PREFIX,
 )
 from handlers.admin.admin import (
     admin_command,
@@ -32,7 +33,7 @@ from handlers.confirmation import (
     confirmation_action_handler,
 )
 from handlers.create_conv_handler import (
-    create_hanlder,
+    create_conv_hanlder_with_flip_action,
     return_back_admin,
     return_back_start,
 )
@@ -50,6 +51,7 @@ from handlers.student.lesson import (
     available_lessons_button,
     show_lessons,
     show_my_lessons,
+    user_lessons_button,
 )
 from handlers.register.register import (
     start_register_action,
@@ -277,7 +279,7 @@ REGISTER_USER = ConversationHandler(
     },
 )
 
-SUBS_FLIP_HANLDER = create_hanlder(
+SUBS_FLIP_HANLDER = create_conv_hanlder_with_flip_action(
     list_available_subs,
     subs_button,
     AdminState.LIST_AVAILABLE_SUBS,
@@ -315,7 +317,7 @@ ADMIN_HANDLER = ConversationHandler(
         AdminState.LECTURER_PHONE: [
             MessageHandler(
                 filters.TEXT
-                & filters.Regex("^(?!Назад$).+")
+                & filters.Regex("^(?!\/stop$).+")
                 & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 make_lecturer,
             )
@@ -323,7 +325,7 @@ ADMIN_HANDLER = ConversationHandler(
         AdminState.GET_NUM_OF_CLASSES: [
             MessageHandler(
                 filters.TEXT
-                & filters.Regex("^(?!Назад$).+")
+                & filters.Regex("^(?!\/stop$).+")
                 & ADMIN_AND_PRIVATE_NOT_COMMAND_FILTER,
                 make_new_subscription,
             )
@@ -334,9 +336,10 @@ ADMIN_HANDLER = ConversationHandler(
         CallbackQueryHandler(end_admin_conv, pattern=f"^{END}$"),
     ],
     map_to_parent={END, StartHandlerState.SELECTING_ACTION},
+    allow_reentry=True,
 )
 
-USER_UPCOMING_LESSONS_HANDLER = create_hanlder(
+ALL_UPCOMING_LESSONS_HANDLER = create_conv_hanlder_with_flip_action(
     show_lessons,
     available_lessons_button,
     StartHandlerState.SHOW_UPCOMING_LESSONS,
@@ -345,10 +348,16 @@ USER_UPCOMING_LESSONS_HANDLER = create_hanlder(
     return_back_start,
 )
 
+USER_UPCOMING_LESSONS_HANDLER = create_conv_hanlder_with_flip_action(
+    show_my_lessons,
+    user_lessons_button,
+    StartHandlerState.SHOW_MY_LESSONS,
+    CALLBACK_USER_LESSON_PREFIX,
+    StartHandlerState.SELECTING_ACTION,
+    return_back_start,
+)
+
 selection_handlers = [
-    CallbackQueryHandler(
-        show_my_lessons, pattern=f"^{StartHandlerState.SHOW_MY_LESSONS}$"
-    ),
     CallbackQueryHandler(
         start_activating_subkey, pattern=f"^{StartHandlerState.START_ACTIVATE_KEY}$"
     ),
@@ -358,6 +367,7 @@ selection_handlers = [
     ),
     REGISTER_USER,
     ADMIN_HANDLER,
+    ALL_UPCOMING_LESSONS_HANDLER,
     USER_UPCOMING_LESSONS_HANDLER,
 ]
 

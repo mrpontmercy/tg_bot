@@ -200,7 +200,7 @@ async def fetch_all_user_upcoming_lessons(user_id: str | int):
     return await fetch_all(sql, {"user_id": user_id})
 
 
-def calculate_timedelta(lesson_start_dt):
+def is_possible_dt(lesson_start_dt):
     lesson_dt_utc = datetime.strptime(lesson_start_dt, DATETIME_FORMAT) - timedelta(
         hours=4
     )
@@ -212,7 +212,10 @@ def calculate_timedelta(lesson_start_dt):
         user_dt_utc.hour,
         user_dt_utc.minute,
     )
-    return lesson_dt_utc - user_dt_utc
+    res = lesson_dt_utc - user_dt_utc
+    if res.total_seconds() // 3600 < 2:
+        return False
+    return True
 
 
 async def get_lessons_button(

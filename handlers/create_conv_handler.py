@@ -7,7 +7,7 @@ from handlers.student.lesson import show_lessons
 from services.states import END, FlipKBState, StartHandlerState
 
 
-def create_hanlder(
+def create_conv_hanlder_with_flip_action(
     callback_entry, callback_arrows, entry_pattern, pattern_prefix, end_state, fallback
 ):
     ch = ConversationHandler(
@@ -22,7 +22,11 @@ def create_hanlder(
             ],
         },
         fallbacks=[CallbackQueryHandler(fallback, pattern=f"^{END}$")],
-        map_to_parent={END: end_state},
+        map_to_parent={
+            END: end_state,
+            StartHandlerState.SHOWING: StartHandlerState.SHOWING,
+        },
+        allow_reentry=True,
     )
     return ch
 

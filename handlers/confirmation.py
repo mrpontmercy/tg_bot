@@ -34,23 +34,22 @@ async def confirmation_action_handler(update: Update, _: ContextTypes.DEFAULT_TY
 
 async def confirm_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
 
     # action_confirm_action
     action = query.data.split("_")[0]
     if action == CALLBACK_DATA_SUBSCRIBE:
         await subscribe_to_lesson(update, context)
-        await show_lessons(update, context)
+        # await show_lessons(update, context)
     elif action == CALLBACK_DATA_CANCEL_LESSON:
         await cancel_lesson(update, context)
-        await show_my_lessons(update, context)
+        # await show_my_lessons(update, context)
     elif action == CALLBACK_DATA_CANCEL_LESSON_LECTURER:
         await cancel_lesson_by_lecturer(update, context)
         await show_lecturer_lessons(update, context)
     elif action == CALLBACK_DATA_DELETESUBSCRIPTION:
         try:
-            await remove_subscription(update, context)
-            await list_available_subs(update, context)
+            return await remove_subscription(update, context)
+            # await list_available_subs(update, context)
         except sqlite3.Error as e:
             logging.getLogger(__name__).exception(e)
             return await query.edit_message_text("Не удалось удалить абонемент!")
@@ -67,4 +66,4 @@ async def cancel_action_button(update: Update, context: ContextTypes.DEFAULT_TYP
     elif action == CALLBACK_DATA_DELETESUBSCRIPTION:
         await list_available_subs(update, context)
 
-    await query.edit_message_text("Действие отменено")
+    # await query.edit_message_text("Действие отменено")

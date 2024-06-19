@@ -26,14 +26,14 @@ def get_back_kb(back_state):
     return keyboard
 
 
-def get_retry_or_back_keyboard(retry_state):
+def get_retry_or_back_keyboard(retry_state, end_state):
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
                     "Попробовать снова", callback_data=str(retry_state)
                 ),
-                InlineKeyboardButton("Назад", callback_data=str(END)),
+                InlineKeyboardButton("Назад", callback_data=str(end_state)),
             ]
         ]
     )
@@ -318,6 +318,7 @@ def get_flip_with_cancel_INLINEKB(
             )
         ]
     )
+    keyboard.append([InlineKeyboardButton("Назад", callback_data=str(END))])
     return InlineKeyboardMarkup(keyboard)
 
 

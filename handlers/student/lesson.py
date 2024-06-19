@@ -22,7 +22,7 @@ from services.kb import (
     get_retry_or_back_keyboard,
 )
 from services.lesson import (
-    calculate_timedelta,
+    is_possible_dt,
     get_user_subscription,
     get_available_upcoming_lessons_from_db,
     get_user_upcoming_lessons,
@@ -36,10 +36,11 @@ from services.reply_text import send_error_message
 from services.response import edit_callbackquery
 from services.states import END, FlipKBState, StartHandlerState
 from services.templates import render_template
-from services.utils import Lesson
+from services.utils import Lesson, add_start_over
 
 
 @user_required(StartHandlerState.SELECTING_ACTION)
+@add_start_over
 async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Отображать уроки, на которые записан пользователь
@@ -55,54 +56,54 @@ async def show_my_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["curr_user_tg_id"] = user.telegram_id
 
+    back_kb = get_back_kb(END)
     try:
         lessons_by_user = await get_user_upcoming_lessons(user.id)
     except LessonError as e:
-        kb = await get_current_keyboard(update)
-        await edit_callbackquery(query, "error.jinja", err=str(e), keyboard=kb)
+        await edit_callbackquery(query, "error.jinja", err=str(e), keyboard=back_kb)
         # await context.bot.send_message(user_tg_id, str(e), reply_markup=kb)
-        return StartHandlerState.SELECTING_ACTION
+        return StartHandlerState.SHOWING
 
     first_lesson: Lesson = lessons_by_user[0]
     context.user_data["curr_lesson"] = first_lesson
     kb = get_flip_with_cancel_INLINEKB(
         0, len(lessons_by_user), CALLBACK_USER_LESSON_PREFIX
     )
-    await context.bot.send_message(
-        user_tg_id,
-        render_template("lesson.jinja", data=first_lesson.to_dict_lesson_info()),
-        reply_markup=kb,
-        parse_mode=ParseMode.HTML,
+    await edit_callbackquery(
+        query,
+        "lesson.jinja",
+        data=first_lesson.to_dict_lesson_info(),
+        keyboard=kb,
     )
-    return StartHandlerState.SELECTING_ACTION
+    return FlipKBState.START
 
 
 @user_required(StartHandlerState.SELECTING_ACTION)
+@add_start_over
 async def show_lessons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Получить список всех доступных уроков, на которые пользователь еще не записан! (сортировать по дате начала занятия)
     Отобразить первый урок, добавить клавиатуру
     """
-    callbackquery = update.callback_query
-    await callbackquery.answer()
+    query = update.callback_query
+    await query.answer()
 
     user_tg_id = update.effective_user.id
 
     user = await get_user_by_tg_id(user_tg_id)
 
     context.user_data["curr_user_tg_id"] = user.telegram_id
-
+    back_kb = get_back_kb(END)
     try:
         lessons = await get_available_upcoming_lessons_from_db(user.id)
     except LessonError as e:
-        kb = await get_current_keyboard(update)
-        await callbackquery.edit_message_text(str(e), reply_markup=kb)
-        return StartHandlerState.SELECTING_ACTION
+        await edit_callbackquery(query, "error.jinja", err=str(e), keyboard=back_kb)
+        return StartHandlerState.SHOWING
 
     context.user_data["curr_lesson"] = lessons[0]
     kb = get_lesson_INLINEKB(0, len(lessons), CALLBACK_LESSON_PREFIX)
     await edit_callbackquery(
-        callbackquery,
+        query,
         "lesson.jinja",
         data=lessons[0].to_dict_lesson_info(),
         keyboard=kb,
@@ -121,25 +122,25 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     обновить количество уроков в абонименте
     удалить строчку из user_lesson
     """
-    user_tg_id = context.user_data.get("curr_user_tg_id")
-    if user_tg_id is None:
-        await update.callback_query.edit_message_text(
-            "Вы не записаны ни на одно занятие!"
-        )
-        return StartHandlerState.SELECTING_ACTION
+    query = update.callback_query
+    await query.answer()
+    user_tg_id = update.effective_user.id
+    back_to_lessons_kb = get_back_kb(StartHandlerState.SHOW_MY_LESSONS)
 
     lesson: Lesson | None = context.user_data.get("curr_lesson")
     if lesson is None:
-        await update.callback_query.edit_message_text(
-            "Не удалось удалить урок, попробуйте снова!"
+        await edit_callbackquery(
+            query,
+            "error.jinja",
+            err="Не удалось удалить урок, попробуйте снова!",
+            keyboard=get_back_kb(END),
         )
-        return StartHandlerState.SELECTING_ACTION
+        return StartHandlerState.SHOWING
 
-    before_lesson_time = calculate_timedelta(lesson.time_start)
-
-    if before_lesson_time.total_seconds() // 3600 < 2:
+    if not is_possible_dt(lesson.time_start):
         await update.callback_query.edit_message_text(
-            "До занятия осталось меньше 2х часов. Отменить занятие не получится"
+            "До занятия осталось меньше 2х часов. Отменить занятие не получится!",
+            reply_markup=back_to_lessons_kb,
         )
         return StartHandlerState.SELECTING_ACTION
 
@@ -147,20 +148,27 @@ async def cancel_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await update_info_after_cancel_lesson(lesson, user)
     except SubscriptionError as e:
-        await send_error_message(user_tg_id, context, err=str(e))
-        return StartHandlerState.SELECTING_ACTION
+        await edit_callbackquery(
+            query, "error.jinja", err=str(e), keyboard=get_back_kb(END)
+        )
+        return StartHandlerState.SHOWING
     except sqlite3.Error as e:
         logging.getLogger(__name__).exception(e)
-        await update.callback_query.edit_message_text(
-            "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!"
+        await edit_callbackquery(
+            query,
+            "error.jinja",
+            err="Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!",
+            keyboard=get_back_kb(END),
         )
-        return StartHandlerState.SELECTING_ACTION
+        return StartHandlerState.SHOWING
 
     lecturer_id = lesson.lecturer_id
-    await notify_lecturer_user_cancel_lesson(
-        f"{user.f_name} {user.s_name}", lecturer_id, lesson, context
+    # await notify_lecturer_user_cancel_lesson(
+    #     f"{user.f_name} {user.s_name}", lecturer_id, lesson, context
+    # )
+    await update.callback_query.edit_message_text(
+        "Занятие успешно отменено!", reply_markup=back_to_lessons_kb
     )
-    await update.callback_query.edit_message_text("Занятие успешно отменено!")
     return StartHandlerState.SELECTING_ACTION
 
 
@@ -238,27 +246,31 @@ async def subscribe_to_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     user_tg_id = update.effective_user.id
-    back_kb = get_back_kb(END)
+    back_kb = get_back_kb(StartHandlerState.SHOW_UPCOMING_LESSONS)
     try:
         user = await get_user_by_tg_id(user_tg_id)
         sub_by_user_id = await get_user_subscription(user.id)
         curr_lesson = context.user_data.get("curr_lesson")
         await process_sub_to_lesson(curr_lesson, sub_by_user_id)
         if curr_lesson is None:
-            await query.edit_message_text("Что-то пошло не так!", reply_markup=back_kb)
-            return StartHandlerState.SHOWING
+            await edit_callbackquery(
+                query, "error.jinja", err="Что-то пошло не так!", keyboard=back_kb
+            )
+            return StartHandlerState.SELECTING_ACTION
     except (UserError, SubscriptionError, LessonError) as err:
         await edit_callbackquery(query, "error.jinja", err=str(err), keyboard=back_kb)
-        return StartHandlerState.SHOWING
+        return StartHandlerState.SELECTING_ACTION
     except sqlite3.Error as e:
         logging.getLogger(__name__).exception(e)
         await query.edit_message_text(
             "Что-то пошло не так, не удалось записаться на занятие.\nОбратитесь к администратору!",
             reply_markup=back_kb,
         )
-        return StartHandlerState.SHOWING
+        return StartHandlerState.SELECTING_ACTION
 
     del context.user_data["curr_lesson"]
-    await query.edit_message_text("Вы успешно записались на занятие!")
-    context.user_data["START_OVER"] = True
-    return ConversationHandler.END
+    await query.edit_message_text(
+        "Вы успешно записались на занятие!", reply_markup=back_kb
+    )
+    # context.user_data["START_OVER"] = True
+    return StartHandlerState.SELECTING_ACTION

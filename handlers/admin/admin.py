@@ -48,35 +48,42 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def enter_lecturer_phone_number(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-
-    await update.message.reply_text("Введите номер телефона преподователя!")
+    query = update.callback_query
+    await query.answer()
+    tg_id = update.effective_user.id
+    await context.bot.send_message(tg_id, "Введите номер телефона преподователя!")
     return AdminState.LECTURER_PHONE
 
 
 async def make_lecturer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    kb = get_retry_or_back_keyboard(AdminState.ADD_LECTURER, AdminState.START_ADMIN)
+    tg_id = update.effective_user.id
     try:
         phone_number = validate_phone_number(update.message.text)
     except InputMessageError as e:
-        logging.getLogger(__name__).exception(e)
-        await send_error_message(update.message.from_user.id, context, err=str(e))
-        return AdminState.LECTURER_PHONE
+        await send_error_message(
+            update.message.from_user.id, context, err=str(e), keyboard=kb
+        )
+        return AdminState.CHOOSING
 
     try:
         user = await get_user_by_phone_number(phone_number)
     except UserError as e:
-        await send_error_message(update.message.from_user.id, context, err=str(e))
-        return AdminState.LECTURER_PHONE
+        await send_error_message(
+            update.message.from_user.id, context, err=str(e), keyboard=kb
+        )
+        return AdminState.CHOOSING
 
     try:
         await update_user_to_lecturer(user.id)
     except sqlite3.Error as e:
         logging.getLogger(__name__).exception(e)
-        await update.message.reply_text("Что-то пошло не так!")
+        await send_error_message(tg_id, context, err="Что-то пошло не так!", keyboard=kb)
         return AdminState.CHOOSING
-
+    back_kb = get_back_kb(AdminState.START_ADMIN)
     await update.message.reply_text(
         f"Пользователь с номером {phone_number} успешно обновлен до `Преподователь`",
-        reply_markup=KB_ADMIN_COMMAND,
+        reply_markup=back_kb,
     )
     return AdminState.CHOOSING
 
@@ -111,13 +118,12 @@ async def insert_lesson_handler(update: Update, context: ContextTypes.DEFAULT_TY
 async def list_available_subs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    kb = KB_ADMIN_COMMAND
+    back_kb = get_back_kb(AdminState.START_ADMIN)
     try:
         subs: list[Subscription] = await get_available_subs()
     except SubscriptionError as e:
-        logging.getLogger(__name__).exception(e)
-        await send_error_message(update.effective_user.id, context, err=str(e))
-        return AdminState.CHOOSING
+        await edit_callbackquery(query, "error.jinja", err=str(e), keyboard=back_kb)
+        return END
     kb = get_flip_delete_back_keyboard(0, len(subs), CALLBACK_SUB_PREFIX)
     sub = subs[0]
     context.user_data["sub_id"] = sub.id
@@ -168,26 +174,31 @@ async def subs_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def generate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     sub_key = await generate_sub_key(20)
 
     context.user_data["sub_key"] = sub_key
+    back_kb = get_back_kb(AdminState.START_ADMIN)
     answer = f"Отлично, теперь введите количество уроков для подписки!"
-    await update.effective_user.send_message(answer)
+    await query.edit_message_text(answer, reply_markup=back_kb)
+
     return AdminState.GET_NUM_OF_CLASSES
 
 
 @add_start_over
 async def make_new_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    kb = get_retry_or_back_keyboard(AdminState.GET_NUM_OF_CLASSES)
+    kb = get_retry_or_back_keyboard(AdminState.GENERATE_SUB, AdminState.START_ADMIN)
+    tg_id = update.effective_user.id
+
     try:
         num_of_classes = validate_num_of_classes(update.message.text)
     except InputMessageError as e:
-        logging.getLogger(__name__).exception(e)
-        await update.message.reply_text(
-            "Что-то пошло не так. Возможная ошибка:\n\n" + str(e)
+        await send_error_message(
+            tg_id,
+            context,
+            err=str(e),
+            keyboard=kb,
         )
-        return AdminState.GET_NUM_OF_CLASSES
+        return AdminState.CHOOSING
     sub_key = context.user_data["sub_key"]
     del context.user_data["sub_key"]
     await execute(
@@ -220,16 +231,29 @@ async def return_to_start_command(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def remove_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tg_id = update.effective_user.id
     sub_id: int | None = context.user_data.get("sub_id")
+    back_kb = get_back_kb(AdminState.START_ADMIN)
     if sub_id is None:
-        await update.message.reply_text("Не удалось найти подписку!")
+        await send_error_message(
+            tg_id, context, err="Не удалось найти подписку!", keyboard=back_kb
+        )
         return AdminState.CHOOSING
     try:
         await delete_subscription(sub_id)
     except sqlite3.Error:
-        raise
+        await send_error_message(
+            tg_id,
+            context,
+            err="Не удалось удалить подписку! Обратитесь к администратору",
+            keyboard=back_kb,
+        )
+        return AdminState.CHOOSING
 
-    await update.callback_query.edit_message_text("Абонемент удален!")
+    back_kb = get_back_kb(AdminState.LIST_AVAILABLE_SUBS)
+    await update.callback_query.edit_message_text(
+        "Абонемент удален!", reply_markup=back_kb
+    )
     return AdminState.CHOOSING
     # await update.message.reply_text("Подписка удалена!")
 

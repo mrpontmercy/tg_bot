@@ -167,6 +167,7 @@ async def get_saved_lessonfile_path(
     return saved_file_path
 
 
+# позволяет переиспользовать start_command без вывода приветственного сообщения
 def add_start_over(func):
     @wraps(func)
     async def wrapper(update, context):
